@@ -1649,16 +1649,20 @@ function generateCoachResponse(msgLower) {
   if (msgLower.includes('food') || msgLower.includes('diet') || msgLower.includes('eat') || msgLower.includes('meal')) {
     const foodKg = categoryTotals.food;
     if (foodKg === 0) return "You haven't logged any meals this month. Your food choices have a big impact — try logging today's meals!";
+    
     const beefCount = countActivityType(state, 'Beef meal');
+    const lambCount = countActivityType(state, 'Lamb meal');
+    const porkCount = countActivityType(state, 'Pork meal');
+    const highImpactCount = beefCount + lambCount + porkCount;
     const veganCount = countActivityType(state, 'Vegan meal') + countActivityType(state, 'Vegetarian meal');
 
-    if (beefCount > 3) {
-      const saving = (beefCount * (6.61 - 1.26) / (30 / 7)).toFixed(1);
-      return `Your food emissions this month: ${foodKg.toFixed(1)}kg.\n\n🥩 Beef is your biggest food source (${beefCount} servings this month). Replacing 2 beef meals per week with chicken saves ~${saving}kg/month.\n\nSwitching to vegetarian saves even more!`;
-    } else if (veganCount > beefCount) {
-      return `Your food emissions this month: ${foodKg.toFixed(1)}kg.\n\n🌱 Your diet is already very low-carbon! You've logged ${veganCount} plant-based meals. Vegan and vegetarian meals are the most impactful dietary choice for the planet.`;
+    if (beefCount > 0 || lambCount > 0) {
+      const saving = ((beefCount * 6.61 + lambCount * 5.84) - (beefCount + lambCount) * 1.26).toFixed(1);
+      return `Your food emissions this month: ${foodKg.toFixed(1)}kg.\n\n🥩 Red meat is a major contributor (${beefCount} beef, ${lambCount} lamb). Replacing these with chicken could save ~${saving}kg.\n\nSwitching to plant-based saves even more!`;
+    } else if (veganCount > highImpactCount) {
+      return `Your food emissions this month: ${foodKg.toFixed(1)}kg.\n\n🌱 Your diet is very low-carbon! You've logged ${veganCount} plant-based meals vs ${highImpactCount} high-impact meats. Vegan/vegetarian choices are excellent for the planet.`;
     } else {
-      return `Your food emissions this month: ${foodKg.toFixed(1)}kg.\n\n💡 Try adding more plant-based meals. Even switching one beef meal per week to vegetarian saves ~0.9kg CO₂ per swap!`;
+      return `Your food emissions this month: ${foodKg.toFixed(1)}kg.\n\n💡 Consider adding more plant-based meals to your week. Even swapping one meat meal per week for a vegetarian option makes a measurable difference!`;
     }
   }
 
