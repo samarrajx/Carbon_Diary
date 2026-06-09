@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Carbon Diary — A daily carbon footprint journal. Log activities, track your impact, earn challenges, and chat with your AI carbon coach." />
+  <title>📗 Carbon Diary — Daily Carbon Footprint Journal</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📗</text></svg>" />
+</head>
+<body>
+
+<!-- Skip Link -->
+<a href="#main-content" class="skip-link">Skip to main content</a>
+
+<!-- Sidebar Overlay (mobile) -->
+<div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
+
+<!-- ============================================================
+     SIDEBAR
+============================================================ -->
+<aside class="sidebar" id="sidebar" role="navigation" aria-label="Main navigation">
+
+  <!-- Logo -->
+  <div class="sidebar-logo">
+    <div class="logo-emoji" aria-hidden="true">📗</div>
+    <div class="logo-title">Carbon Diary</div>
+    <div class="logo-tagline">Track daily. Live green.</div>
+  </div>
+
+  <!-- Nav -->
+  <nav class="sidebar-nav">
+    <button class="nav-item active" data-page="page-today" aria-label="Today's Log" role="link">
+      <span class="nav-icon" aria-hidden="true">📗</span>
+      Today's Log
+    </button>
+    <button class="nav-item" data-page="page-progress" aria-label="My Progress" role="link">
+      <span class="nav-icon" aria-hidden="true">📈</span>
+      My Progress
+    </button>
+    <button class="nav-item" data-page="page-challenges" aria-label="Challenges" role="link">
+      <span class="nav-icon" aria-hidden="true">🎯</span>
+      Challenges
+    </button>
+    <button class="nav-item" data-page="page-coach" aria-label="Carbon Coach" role="link">
+      <span class="nav-icon" aria-hidden="true">🤖</span>
+      Carbon Coach
+    </button>
+  </nav>
+
+  <!-- Quick stats -->
+  <div class="sidebar-stats">
+    <div class="sidebar-streak" id="sidebarStreak" aria-live="polite">
+      <span>🔥</span>
+      <span id="sidebarStreakText">Start your streak today!</span>
+    </div>
+    <div class="sidebar-stat-row">
+      <span>Today</span>
+      <span id="sidebarToday">0.0 kg</span>
+    </div>
+    <div class="sidebar-stat-row">
+      <span>This month</span>
+      <span id="sidebarMonth">0.0 kg</span>
+    </div>
+  </div>
+
+  <!-- Theme toggle -->
+  <div class="sidebar-footer">
+    <button class="theme-toggle-btn" id="themeToggle" aria-label="Toggle dark/light theme">
+      <span class="theme-icon" id="themeIcon">🌙</span>
+      <span id="themeLabel">Dark Mode</span>
+    </button>
+  </div>
+</aside>
+
+<!-- Mobile hamburger -->
+<button class="menu-toggle" id="menuToggle" aria-label="Open navigation menu" aria-expanded="false" aria-controls="sidebar">
+  <span aria-hidden="true"></span>
+  <span aria-hidden="true"></span>
+  <span aria-hidden="true"></span>
+</button>
+
+<!-- ============================================================
+     MAIN CONTENT
+============================================================ -->
+<main class="main-content" id="main-content">
+
+  <!-- ══════════════════════════════════════════════════════════
+       PAGE 1 — TODAY'S LOG
+  ══════════════════════════════════════════════════════════ -->
+  <section class="page active" id="page-today" aria-labelledby="today-heading">
+
+    <div class="page-header">
+      <h1 class="page-title" id="today-heading">
+        <span aria-hidden="true">📗</span>
+        Today's Log
+      </h1>
+      <p class="page-subtitle">
+        <span id="todayDate">Loading date...</span> &nbsp;·&nbsp;
+        <strong id="todayTotalSubtitle">0.00 kg CO₂</strong> logged today
+      </p>
+    </div>
+
+    <!-- Streak Banner -->
+    <div class="streak-banner neutral" id="streakBanner" role="status" aria-live="polite">
+      <span id="streakBannerText">🌱 Start logging to build your green streak!</span>
+    </div>
+
+    <!-- Quick Log Panel -->
+    <div class="card quick-log-card" id="quickLogCard">
+      <div class="card-title">
+        <span class="card-title-icon" aria-hidden="true">✏️</span>
+        Quick Log
+      </div>
+
+      <!-- Category Tabs -->
+      <div class="cat-tabs" role="tablist" aria-label="Activity category">
+        <button class="cat-tab active" role="tab" aria-selected="true" data-cat="transport" id="tab-transport">
+          🚗 Transport
+        </button>
+        <button class="cat-tab" role="tab" aria-selected="false" data-cat="energy" id="tab-energy">
+          ⚡ Energy
+        </button>
+        <button class="cat-tab" role="tab" aria-selected="false" data-cat="food" id="tab-food">
+          🍽️ Food
+        </button>
+        <button class="cat-tab" role="tab" aria-selected="false" data-cat="shopping" id="tab-shopping">
+          🛒 Shopping
+        </button>
+      </div>
+
+      <!-- Log Form -->
+      <form class="log-form" id="logForm" novalidate>
+
+        <!-- Transport fields -->
+        <div id="fields-transport" class="form-row" role="tabpanel" aria-labelledby="tab-transport">
+          <div class="form-group">
+            <label for="transportType">Activity</label>
+            <select id="transportType" class="form-control" aria-required="true">
+              <option value="Car trip (petrol)">🚗 Car trip (petrol)</option>
+              <option value="Car trip (diesel)">🚙 Car trip (diesel)</option>
+              <option value="Car trip (electric)">⚡ Car trip (electric)</option>
+              <option value="Motorbike">🏍️ Motorbike</option>
+              <option value="Bus/Metro">🚌 Bus / Metro</option>
+              <option value="Train">🚂 Train</option>
+              <option value="Domestic flight">✈️ Domestic flight</option>
+              <option value="Long-haul flight">🛫 Long-haul flight</option>
+              <option value="Walking/Cycling">🚶 Walking / Cycling</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="transportQty">Distance (km)</label>
+            <input type="number" id="transportQty" class="form-control"
+              min="0" max="50000" step="0.1" value="10"
+              placeholder="e.g. 15" aria-required="true"
+              aria-label="Distance in kilometers" />
+          </div>
+        </div>
+
+        <!-- Energy fields -->
+        <div id="fields-energy" class="form-row" role="tabpanel" aria-labelledby="tab-energy" hidden>
+          <div class="form-group">
+            <label for="energyType">Activity</label>
+            <select id="energyType" class="form-control" aria-required="true">
+              <option value="Electricity used">💡 Electricity used</option>
+              <option value="Gas heating (hour)">🔥 Gas heating (hour)</option>
+              <option value="Air conditioning (hour)">❄️ Air conditioning (hour)</option>
+              <option value="Tumble dryer (cycle)">🌀 Tumble dryer (cycle)</option>
+              <option value="Dishwasher (cycle)">🍽️ Dishwasher (cycle)</option>
+              <option value="Long hot shower (per shower)">🚿 Long hot shower</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="energyQty"><span id="energyUnitLabel">Quantity (kWh)</span></label>
+            <input type="number" id="energyQty" class="form-control"
+              min="0" max="10000" step="0.1" value="1"
+              placeholder="e.g. 5" aria-required="true"
+              aria-label="Quantity" />
+          </div>
+        </div>
+
+        <!-- Food fields -->
+        <div id="fields-food" class="form-row" role="tabpanel" aria-labelledby="tab-food" hidden>
+          <div class="form-group">
+            <label for="foodType">What did you eat?</label>
+            <select id="foodType" class="form-control" aria-required="true">
+              <option value="Beef meal">🥩 Beef meal</option>
+              <option value="Lamb meal">🍖 Lamb meal</option>
+              <option value="Pork meal">🥓 Pork meal</option>
+              <option value="Chicken meal">🍗 Chicken meal</option>
+              <option value="Fish meal">🐟 Fish meal</option>
+              <option value="Vegetarian meal">🥗 Vegetarian meal</option>
+              <option value="Vegan meal">🌱 Vegan meal</option>
+              <option value="Coffee (cup)">☕ Coffee (cup)</option>
+              <option value="Dairy milk (glass)">🥛 Dairy milk (glass)</option>
+              <option value="Plant milk (glass)">🌿 Plant milk (glass)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="foodQty">Servings</label>
+            <input type="number" id="foodQty" class="form-control"
+              min="1" max="50" step="1" value="1"
+              placeholder="e.g. 1" aria-required="true"
+              aria-label="Number of servings" />
+          </div>
+        </div>
+
+        <!-- Shopping fields -->
+        <div id="fields-shopping" class="form-row" role="tabpanel" aria-labelledby="tab-shopping" hidden>
+          <div class="form-group">
+            <label for="shoppingType">What did you buy?</label>
+            <select id="shoppingType" class="form-control" aria-required="true">
+              <option value="New clothing item">👕 New clothing item</option>
+              <option value="New electronics (small)">📱 New electronics (small)</option>
+              <option value="New electronics (large)">💻 New electronics (large)</option>
+              <option value="Online delivery package">📦 Online delivery package</option>
+              <option value="New book/magazine">📚 New book/magazine</option>
+              <option value="Streaming hour">📺 Streaming hour</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="shoppingQty">Quantity</label>
+            <input type="number" id="shoppingQty" class="form-control"
+              min="1" max="1000" step="1" value="1"
+              placeholder="e.g. 1" aria-required="true"
+              aria-label="Quantity" />
+          </div>
+        </div>
+
+        <!-- CO2 Preview -->
+        <div class="co2-preview zero" id="co2Preview" role="status" aria-live="polite" aria-atomic="true">
+          <span class="co2-preview-label">Estimated CO₂:</span>
+          <span id="co2PreviewValue" class="font-mono">0.00 kg CO₂</span>
+        </div>
+
+        <!-- Submit -->
+        <button type="submit" class="btn btn-primary btn-full" id="addLogBtn" aria-label="Add activity to today's log">
+          + Add to Today's Log
+        </button>
+      </form>
+    </div>
+
+    <!-- Today's Entries List -->
+    <div class="card entries-list-card" id="entriesCard">
+      <div class="card-title">
+        <span class="card-title-icon" aria-hidden="true">📋</span>
+        Today's Entries
+        <span id="entryCount" style="margin-left:auto;font-size:.8rem;font-weight:400;color:var(--text-muted);">0 activities</span>
+      </div>
+      <div id="entriesList" class="entries-list" role="list" aria-label="Today's logged activities">
+        <div class="empty-state">
+          <div class="empty-state-icon" aria-hidden="true">🌿</div>
+          <strong>No activities logged yet today.</strong>
+          <p>Start with your morning commute!</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Today's Summary Bar -->
+    <div class="summary-bar" id="summaryBar">
+      <div class="summary-bar-inner">
+        <div class="summary-cat">
+          <span aria-hidden="true">🚗</span>
+          <strong id="sumTransport">0.0</strong><span style="font-size:.75rem;margin-left:2px;">kg</span>
+        </div>
+        <div class="summary-divider" aria-hidden="true"></div>
+        <div class="summary-cat">
+          <span aria-hidden="true">⚡</span>
+          <strong id="sumEnergy">0.0</strong><span style="font-size:.75rem;margin-left:2px;">kg</span>
+        </div>
+        <div class="summary-divider" aria-hidden="true"></div>
+        <div class="summary-cat">
+          <span aria-hidden="true">🍽️</span>
+          <strong id="sumFood">0.0</strong><span style="font-size:.75rem;margin-left:2px;">kg</span>
+        </div>
+        <div class="summary-divider" aria-hidden="true"></div>
+        <div class="summary-cat">
+          <span aria-hidden="true">🛒</span>
+          <strong id="sumShopping">0.0</strong><span style="font-size:.75rem;margin-left:2px;">kg</span>
+        </div>
+        <div class="summary-total" id="summaryTotal" aria-live="polite">
+          Total today: <span id="summaryTotalVal">0.00 kg CO₂</span>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════
+       PAGE 2 — MY PROGRESS
+  ══════════════════════════════════════════════════════════ -->
+  <section class="page" id="page-progress" aria-labelledby="progress-heading" hidden>
+
+    <div class="page-header">
+      <h1 class="page-title" id="progress-heading">
+        <span aria-hidden="true">📈</span>
+        My Progress
+      </h1>
+      <p class="page-subtitle">Your carbon footprint over time</p>
+    </div>
+
+    <!-- Stat Cards Row -->
+    <div class="stat-cards-row" aria-label="Key statistics">
+      <article class="stat-card" aria-labelledby="stat-today-label">
+        <div class="stat-card-label" id="stat-today-label">Today</div>
+        <div class="stat-card-value" id="statToday">0.00</div>
+        <div class="stat-card-sub">kg CO₂</div>
+      </article>
+      <article class="stat-card" aria-labelledby="stat-week-label">
+        <div class="stat-card-label" id="stat-week-label">This Week</div>
+        <div class="stat-card-value" id="statWeek">0.00</div>
+        <div class="stat-card-sub">kg CO₂</div>
+      </article>
+      <article class="stat-card" aria-labelledby="stat-month-label">
+        <div class="stat-card-label" id="stat-month-label">This Month</div>
+        <div class="stat-card-value" id="statMonth">0.00</div>
+        <div class="stat-card-sub">kg CO₂</div>
+      </article>
+      <article class="stat-card" aria-labelledby="stat-pace-label">
+        <div class="stat-card-label" id="stat-pace-label">Yearly Pace</div>
+        <div class="stat-card-value" id="statPace">—</div>
+        <div class="stat-card-sub" id="statPaceSub">t CO₂/year</div>
+      </article>
+    </div>
+
+    <!-- Calendar Heatmap -->
+    <div class="card section-gap" aria-labelledby="heatmap-title">
+      <div class="card-title">
+        <span class="card-title-icon" aria-hidden="true">📅</span>
+        <span id="heatmap-title">Your 30-Day Carbon Diary</span>
+      </div>
+      <div class="calendar-grid" id="calendarGrid" role="grid" aria-label="30-day carbon heatmap">
+        <!-- Filled by JS -->
+      </div>
+      <!-- Heatmap legend -->
+      <div class="heatmap-legend" aria-label="Color legend for heatmap">
+        <span>Less</span>
+        <div class="heatmap-legend-item">
+          <div class="heatmap-legend-swatch" style="background:#e5e7eb;" aria-label="No data"></div>
+          <span>None</span>
+        </div>
+        <div class="heatmap-legend-item">
+          <div class="heatmap-legend-swatch" style="background:#2d6a4f;" aria-label="0 to 5 kg"></div>
+          <span>0–5kg</span>
+        </div>
+        <div class="heatmap-legend-item">
+          <div class="heatmap-legend-swatch" style="background:#52b788;" aria-label="5 to 10 kg"></div>
+          <span>5–10kg</span>
+        </div>
+        <div class="heatmap-legend-item">
+          <div class="heatmap-legend-swatch" style="background:#f4a261;" aria-label="10 to 15 kg"></div>
+          <span>10–15kg</span>
+        </div>
+        <div class="heatmap-legend-item">
+          <div class="heatmap-legend-swatch" style="background:#e63946;" aria-label="15 kg or more"></div>
+          <span>15kg+</span>
+        </div>
+        <span>More</span>
+      </div>
+    </div>
+
+    <!-- Category Breakdown -->
+    <div class="card section-gap" aria-labelledby="breakdown-title">
+      <div class="card-title">
+        <span class="card-title-icon" aria-hidden="true">🍩</span>
+        <span id="breakdown-title">This Month's Breakdown</span>
+      </div>
+      <div class="breakdown-bars" id="breakdownBars" aria-label="Emissions by category">
+        <!-- Filled by JS -->
+      </div>
+    </div>
+
+    <!-- Weekly Trend -->
+    <div class="card section-gap" aria-labelledby="trend-title">
+      <div class="card-title">
+        <span class="card-title-icon" aria-hidden="true">📉</span>
+        <span id="trend-title">Last 7 Days</span>
+      </div>
+      <div class="weekly-chart-wrap">
+        <svg id="weeklySvg" class="weekly-svg" viewBox="0 0 520 180"
+          xmlns="http://www.w3.org/2000/svg"
+          role="img" aria-label="Line chart showing last 7 days of CO2 emissions">
+          <g id="weeklyChartContent"></g>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Comparison Card -->
+    <div class="card section-gap" aria-labelledby="comparison-title">
+      <div class="card-title">
+        <span class="card-title-icon" aria-hidden="true">🌍</span>
+        <span id="comparison-title">How You Compare</span>
+      </div>
+      <div class="comparison-bars" id="comparisonBars" aria-label="Comparison with global averages">
+        <!-- Filled by JS -->
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════
+       PAGE 3 — CHALLENGES
+  ══════════════════════════════════════════════════════════ -->
+  <section class="page" id="page-challenges" aria-labelledby="challenges-heading" hidden>
+
+    <div class="page-header">
+      <h1 class="page-title" id="challenges-heading">
+        <span aria-hidden="true">🎯</span>
+        Daily Challenges
+      </h1>
+      <p class="page-subtitle">New challenges every day. Complete them to earn green points.</p>
+    </div>
+
+    <!-- Points Header -->
+    <div class="points-header">
+      <div class="points-display" aria-label="Your green points">
+        <div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span aria-hidden="true">⭐</span>
+            <span class="points-number" id="pointsDisplay">0</span>
+          </div>
+          <div class="points-label">Green Points</div>
+        </div>
+      </div>
+      <div>
+        <div class="level-badge" id="levelBadge" aria-label="Current level">🌱 Seedling</div>
+        <div class="level-progress-bar" role="progressbar" aria-label="Level progress"
+          aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" id="levelProgressBar">
+          <div class="level-progress-fill" id="levelProgressFill" style="width:0%"></div>
+        </div>
+        <div style="font-size:.72rem;color:var(--text-muted);margin-top:4px;" id="levelProgressText"></div>
+      </div>
+    </div>
+
+    <!-- Today's Challenges -->
+    <div class="card section-gap" aria-labelledby="challenges-today-title">
+      <div class="card-title">
+        <span class="card-title-icon" aria-hidden="true">🎯</span>
+        <span id="challenges-today-title">Today's Challenges</span>
+        <span style="margin-left:auto;font-size:.78rem;font-weight:400;color:var(--text-muted);" id="challengesDate"></span>
+      </div>
+      <div class="challenges-grid" id="challengesGrid" aria-label="Today's daily challenges">
+        <!-- Filled by JS -->
+      </div>
+    </div>
+
+    <!-- Achievements Wall -->
+    <div class="card" aria-labelledby="achievements-title">
+      <div class="card-title">
+        <span class="card-title-icon" aria-hidden="true">🏆</span>
+        <span id="achievements-title">Achievement Wall</span>
+      </div>
+      <div class="achievements-grid" id="achievementsGrid" aria-label="Achievement badges">
+        <!-- Filled by JS -->
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════
+       PAGE 4 — AI COACH
+  ══════════════════════════════════════════════════════════ -->
+  <section class="page" id="page-coach" aria-labelledby="coach-heading" hidden>
+
+    <div class="page-header">
+      <h1 class="page-title" id="coach-heading">
+        <span aria-hidden="true">🤖</span>
+        Your Carbon Coach
+      </h1>
+      <p class="page-subtitle">Personalized advice based on YOUR actual logged data</p>
+    </div>
+
+    <div class="coach-layout">
+      <!-- Chat Window -->
+      <div class="chat-window" id="chatWindow"
+        role="log" aria-live="polite" aria-label="Chat messages" aria-relevant="additions">
+        <!-- Messages filled by JS -->
+      </div>
+
+      <!-- Quick Questions -->
+      <div class="quick-questions" role="group" aria-label="Quick question shortcuts">
+        <button class="quick-q-btn" data-q="What's my biggest source?" aria-label="Ask: What's my biggest source?">
+          🔍 What's my biggest source?
+        </button>
+        <button class="quick-q-btn" data-q="How can I reduce transport?" aria-label="Ask: How can I reduce transport?">
+          🚗 How can I reduce transport?
+        </button>
+        <button class="quick-q-btn" data-q="Am I on track for the Paris target?" aria-label="Ask: Am I on track for the Paris target?">
+          🎯 Am I on track for Paris target?
+        </button>
+        <button class="quick-q-btn" data-q="What should I change this week?" aria-label="Ask: What should I change this week?">
+          📅 What should I change this week?
+        </button>
+      </div>
+
+      <!-- Chat Input -->
+      <div class="chat-input-row">
+        <label for="chatInput" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;">
+          Ask your carbon coach
+        </label>
+        <input
+          type="text"
+          id="chatInput"
+          class="chat-input"
+          placeholder="Ask your carbon coach..."
+          maxlength="300"
+          aria-label="Type your question here"
+          autocomplete="off"
+        />
+        <button class="chat-send-btn" id="chatSendBtn" aria-label="Send message">
+          ➤
+        </button>
+      </div>
+    </div>
+
+  </section>
+
+</main>
+
+<!-- Mobile Bottom Tabs -->
+<nav class="mobile-tabs" role="navigation" aria-label="Mobile navigation">
+  <button class="mobile-tab active" data-page="page-today" aria-label="Today's Log">
+    <span class="tab-icon" aria-hidden="true">📗</span>
+    Today
+  </button>
+  <button class="mobile-tab" data-page="page-progress" aria-label="My Progress">
+    <span class="tab-icon" aria-hidden="true">📈</span>
+    Progress
+  </button>
+  <button class="mobile-tab" data-page="page-challenges" aria-label="Challenges">
+    <span class="tab-icon" aria-hidden="true">🎯</span>
+    Challenges
+  </button>
+  <button class="mobile-tab" data-page="page-coach" aria-label="Carbon Coach">
+    <span class="tab-icon" aria-hidden="true">🤖</span>
+    Coach
+  </button>
+</nav>
+
+<!-- Tooltip (calendar) -->
+<div class="cal-tooltip" id="calTooltip" aria-hidden="true"></div>
+
+<!-- Toast -->
+<div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+
+<script src="script.js"></script>
+</body>
+</html>
