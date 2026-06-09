@@ -1160,7 +1160,7 @@ function renderComparisonCard() {
   const yearlyPaceTons = month > 0 ? (month / 30) * 365 / 1000 : null;
 
   const benchmarks = [
-    { label: '🇮🇳 India avg',  val: 1.9,  color: '#10b981' },
+    { label: '🇮🇳 India avg',  val: 1.9,  color: '#059669' },
     { label: '🌍 Global avg',  val: 4.0,  color: '#3b82f6' },
     { label: '🇪🇺 EU avg',     val: 7.0,  color: '#f59e0b' },
     { label: '🇺🇸 US avg',     val: 14.9, color: '#e63946' },
