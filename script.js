@@ -1,565 +1,206 @@
 /**
- * Carbon Diary — script.js
- * "Every day is a new page. Make it green."
- *
- * Architecture:
- *   - EMISSION_FACTORS: all emission coefficients
- *   - CHALLENGE_POOL: all challenge definitions
- *   - ACHIEVEMENTS: all achievement definitions
- *   - state: single source of truth (saved to localStorage)
- *   - Named functions for every feature
+ * Carbon Diary — Main Application Controller
+ * 
+ * Handles DOM manipulation, event listeners, and UI rendering.
+ * Pure logic is in js/calculations.js
+ * Constants are in js/constants.js
+ * Storage operations are in js/storage.js
+ * Utility functions are in js/utils.js
+ * 
+ * @version 1.0.0
+ * @author Carbon Diary
+ * @license MIT
  */
 
 'use strict';
 
-/* ================================================================
-   CONSTANTS
-================================================================ */
-
-// EMISSION_FACTORS are now imported globally from js/calculations.js
-
-/** Category display config */
-const CAT_CONFIG = {
-  transport: { icon: '🚗', color: '#3b82f6', label: 'Transport' },
-  energy:    { icon: '⚡', color: '#f59e0b', label: 'Energy' },
-  food:      { icon: '🍽️', color: '#10b981', label: 'Food' },
-  shopping:  { icon: '🛒', color: '#8b5cf6', label: 'Shopping' },
-};
-
-/** Daily target in kg */
-const DAILY_TARGET_KG = 8;
-
-/** All 12 challenges in the pool */
-const CHALLENGE_POOL = [
-  {
-    id: 'zero_car',
-    icon: '🚗',
-    title: 'Zero Car Day',
-    desc: "Don't log any car trips today.",
-    points: 30,
-    autoCheck: (todayEntries) =>
-      !todayEntries.some(e => e.category === 'transport' && e.activityType.startsWith('Car')),
-    manual: false,
-  },
-  {
-    id: 'plant_based',
-    icon: '🥗',
-    title: 'Plant-Based Day',
-    desc: 'Log only vegan or vegetarian meals today.',
-    points: 40,
-    autoCheck: (todayEntries) => {
-      const meals = todayEntries.filter(e => e.category === 'food' &&
-        ['Beef meal','Lamb meal','Pork meal','Chicken meal','Fish meal','Coffee (cup)','Dairy milk (glass)'].includes(e.activityType));
-      return meals.length === 0;
-    },
-    manual: false,
-  },
-  {
-    id: 'walk_5km',
-    icon: '🚶',
-    title: '5km Walk',
-    desc: 'Log a walking or cycling trip of at least 5km.',
-    points: 20,
-    autoCheck: (todayEntries) =>
-      todayEntries.some(e => e.category === 'transport' && e.activityType === 'Walking/Cycling' && e.quantity >= 5),
-    manual: false,
-  },
-  {
-    id: 'no_ac',
-    icon: '❄️',
-    title: 'No AC Day',
-    desc: "Don't log any air conditioning usage today.",
-    points: 25,
-    autoCheck: (todayEntries) =>
-      !todayEntries.some(e => e.category === 'energy' && e.activityType === 'Air conditioning (hour)'),
-    manual: false,
-  },
-  {
-    id: 'minimal_shopper',
-    icon: '🛒',
-    title: 'Minimal Shopper',
-    desc: 'Log zero shopping today.',
-    points: 20,
-    autoCheck: (todayEntries) =>
-      !todayEntries.some(e => e.category === 'shopping'),
-    manual: false,
-  },
-  {
-    id: 'green_commuter',
-    icon: '🚌',
-    title: 'Green Commuter',
-    desc: 'Use only transit, train or walk/cycle today (no cars).',
-    points: 35,
-    autoCheck: (todayEntries) => {
-      const hasTransport = todayEntries.some(e => e.category === 'transport');
-      const hasCar = todayEntries.some(e =>
-        e.category === 'transport' &&
-        ['Car trip (petrol)','Car trip (diesel)','Car trip (electric)','Motorbike'].includes(e.activityType)
-      );
-      return hasTransport && !hasCar;
-    },
-    manual: false,
-  },
-  {
-    id: 'under_5kg',
-    icon: '🌿',
-    title: 'Under 5kg Day',
-    desc: 'Keep your total CO₂ under 5kg today.',
-    points: 50,
-    autoCheck: (todayEntries, todayTotal) => todayTotal > 0 && todayTotal < 5,
-    manual: false,
-  },
-  {
-    id: 'meatless_meal',
-    icon: '🥦',
-    title: 'One Meatless Meal',
-    desc: 'Log a vegan or vegetarian meal today.',
-    points: 15,
-    autoCheck: (todayEntries) =>
-      todayEntries.some(e => e.category === 'food' &&
-        ['Vegan meal', 'Vegetarian meal'].includes(e.activityType)),
-    manual: false,
-  },
-  {
-    id: 'short_shower',
-    icon: '🚿',
-    title: 'Short Shower',
-    desc: 'Log only 1 shower today (or none).',
-    points: 20,
-    autoCheck: (todayEntries) => {
-      const showers = todayEntries.filter(e => e.activityType === 'Long hot shower (per shower)');
-      return showers.length === 0 || showers.reduce((s,e) => s + e.quantity, 0) <= 1;
-    },
-    manual: false,
-  },
-  {
-    id: 'no_delivery',
-    icon: '📦',
-    title: 'No Delivery',
-    desc: "Log no online delivery packages today.",
-    points: 15,
-    autoCheck: (todayEntries) =>
-      !todayEntries.some(e => e.activityType === 'Online delivery package'),
-    manual: false,
-  },
-  {
-    id: 'train_day',
-    icon: '🚂',
-    title: 'Train Day',
-    desc: 'Log a train journey today.',
-    points: 25,
-    autoCheck: (todayEntries) =>
-      todayEntries.some(e => e.category === 'transport' && e.activityType === 'Train'),
-    manual: false,
-  },
-  {
-    id: 'under_8kg',
-    icon: '🎯',
-    title: 'Under 8kg Day',
-    desc: 'Keep your total CO₂ under 8kg today (Paris target!).',
-    points: 30,
-    autoCheck: (todayEntries, todayTotal) => todayTotal > 0 && todayTotal < 8,
-    manual: false,
-  },
-];
-
-/** Achievements definitions */
-const ACHIEVEMENTS = [
-  {
-    id: 'first_log',
-    emoji: '🌱',
-    name: 'First Log',
-    desc: 'Log your first activity',
-    check: (state) => getTotalActivities(state) >= 1,
-  },
-  {
-    id: 'streak_3',
-    emoji: '📅',
-    name: '3 Day Streak',
-    desc: '3 consecutive days logged',
-    check: (state) => state.streak.current >= 3,
-  },
-  {
-    id: 'streak_7',
-    emoji: '🔥',
-    name: '7 Day Streak',
-    desc: '7 consecutive days logged',
-    check: (state) => state.streak.current >= 7,
-  },
-  {
-    id: 'green_day',
-    emoji: '🌿',
-    name: 'Green Day',
-    desc: 'Stay under 5kg in a day',
-    check: (state) => hasHadDayUnder(state, 5),
-  },
-  {
-    id: 'plant_week',
-    emoji: '🥗',
-    name: 'Plant Week',
-    desc: 'Log 7 vegan meals total',
-    check: (state) => countActivityType(state, 'Vegan meal') >= 7,
-  },
-  {
-    id: 'flight_free',
-    emoji: '✈️',
-    name: 'Flight Free',
-    desc: '7 days logged without flying',
-    check: (state) => hasFlightFreeStreak(state, 7),
-  },
-  {
-    id: 'cyclist',
-    emoji: '🚲',
-    name: 'Cyclist',
-    desc: 'Log 50km of walking/cycling total',
-    check: (state) => totalCyclingKm(state) >= 50,
-  },
-  {
-    id: 'climate_warrior',
-    emoji: '🌍',
-    name: 'Climate Warrior',
-    desc: '30 days logged total',
-    check: (state) => getUniqueDaysLogged(state) >= 30,
-  },
-];
-
-/** XP Level definitions */
-const LEVELS = [
-  { name: '🌱 Seedling',        min: 0,    max: 99 },
-  { name: '🌿 Sprout',          min: 100,  max: 299 },
-  { name: '🌳 Sapling',         min: 300,  max: 699 },
-  { name: '🌲 Tree',            min: 700,  max: 1499 },
-  { name: '🌲🌲 Forest Guardian', min: 1500, max: Infinity },
-];
-
-/* ================================================================
-   STATE
-================================================================ */
-
-const STORAGE_KEY = 'carbondiary_data';
-
-/**
- * Default state structure — used on first launch.
- */
-const DEFAULT_STATE = {
-  activities: [],
-  completedChallenges: {},  // { "YYYY-MM-DD": ["challenge_id", ...] }
-  points: 0,
-  streak: { current: 0, lastLogDate: null },
-  chatMessages: [],
-  theme: 'light',
-};
-
-/** Live state object — single source of truth */
-let state = JSON.parse(JSON.stringify(DEFAULT_STATE));
-
-/** Active category tab */
+let state = getDefaultState();
 let activeCategory = 'transport';
 
-/* ================================================================
-   PERSISTENCE
-================================================================ */
+// ============================================================
+// INITIALIZATION
+// ============================================================
 
 /**
- * Saves the current state to localStorage.
+ * Wires up all event listeners for the application.
  */
-function saveState() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (e) {
-    console.warn('CarbonDiary: Failed to save state.', e);
-  }
-}
+function initEventListeners() {
 
-/**
- * Loads and returns state from localStorage. Falls back to default.
- */
-function loadState() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-    const parsed = JSON.parse(raw);
-    // Merge to ensure new keys are present
-    state = Object.assign(JSON.parse(JSON.stringify(DEFAULT_STATE)), parsed);
-    // Guard against corrupt streak object (edge case for first-time / migrated users)
-    if (!state.streak || typeof state.streak.current !== 'number' || state.streak.current < 0) {
-      state.streak = { current: 0, lastLogDate: null };
-    }
-  } catch (e) {
-    console.warn('CarbonDiary: Failed to load state.', e);
-    state = JSON.parse(JSON.stringify(DEFAULT_STATE));
-  }
-}
-
-/* ================================================================
-   DATE UTILITIES
-================================================================ */
-
-/**
- * Returns today's date string in YYYY-MM-DD format.
- * @returns {string}
- */
-function todayStr() {
-  return new Date().toISOString().split('T')[0];
-}
-
-/**
- * Returns a date string N days ago in YYYY-MM-DD format.
- * @param {number} daysAgo
- * @returns {string}
- */
-function dateNDaysAgo(daysAgo) {
-  const d = new Date();
-  d.setDate(d.getDate() - daysAgo);
-  return d.toISOString().split('T')[0];
-}
-
-/**
- * Formats a YYYY-MM-DD string as "Monday, June 9" style.
- * @param {string} dateStr
- * @returns {string}
- */
-function formatDateFriendly(dateStr) {
-  const d = new Date(dateStr + 'T12:00:00');
-  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-}
-
-/**
- * Formats a YYYY-MM-DD string as "Jun 9" style.
- * @param {string} dateStr
- * @returns {string}
- */
-function formatDateShort(dateStr) {
-  const d = new Date(dateStr + 'T12:00:00');
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-
-/**
- * Formats a timestamp as "HH:MM" time string.
- * @param {number} ts - Unix timestamp in ms
- * @returns {string}
- */
-function formatTime(ts) {
-  return new Date(ts).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-}
-
-/**
- * Returns the day-of-week abbreviation for a date string.
- * @param {string} dateStr
- * @returns {string}
- */
-function getDayLabel(dateStr) {
-  const d = new Date(dateStr + 'T12:00:00');
-  return d.toLocaleDateString('en-US', { weekday: 'short' });
-}
-
-/* ================================================================
-   STREAK MANAGEMENT
-================================================================ */
-
-/**
- * Recalculates and updates the streak based on when user last logged.
- * Called on page load and after every new activity is added.
- */
-function updateStreak() {
-  const today = todayStr();
-  const yesterday = dateNDaysAgo(1);
-  const lastLog = state.streak.lastLogDate;
-
-  const todayActivities = getActivitiesForDate(today);
-  const hasLoggedToday = todayActivities.length > 0;
-
-  if (!lastLog) {
-    // First time ever — initialise cleanly so current is always a number
-    state.streak.current = hasLoggedToday ? 1 : 0;
-    if (hasLoggedToday) state.streak.lastLogDate = today;
-  } else if (lastLog === today) {
-    // Already counted today — no change needed
-  } else if (lastLog === yesterday) {
-    // Streak continues only if user has also logged today
-    if (hasLoggedToday) {
-      state.streak.current = (state.streak.current || 0) + 1;
-      state.streak.lastLogDate = today;
-    }
-    // If not logged today yet: streak pending, not broken
-  } else {
-    // Gap detected — reset; restart from 1 if they log today
-    if (hasLoggedToday) {
-      state.streak.current = 1;
-      state.streak.lastLogDate = today;
-    } else {
-      state.streak.current = 0;
-      state.streak.lastLogDate = null;
-    }
-  }
-}
-
-/* ================================================================
-   ACTIVITY QUERIES
-================================================================ */
-
-/**
- * Returns all activities for a specific date string.
- * @param {string} dateStr - YYYY-MM-DD
- * @returns {Array}
- */
-function getActivitiesForDate(dateStr) {
-  return state.activities.filter(a => a.date === dateStr);
-}
-
-/**
- * Returns the total CO2 for a given date.
- * @param {string} dateStr
- * @returns {number}
- */
-function getDayTotal(dateStr) {
-  return getActivitiesForDate(dateStr).reduce((sum, a) => sum + a.co2kg, 0);
-}
-
-/**
- * Returns total CO2 across the last N days (including today).
- * @param {number} days
- * @returns {number}
- */
-function getTotalForLastNDays(days) {
-  let total = 0;
-  for (let i = 0; i < days; i++) {
-    total += getDayTotal(dateNDaysAgo(i));
-  }
-  return total;
-}
-
-/**
- * Returns per-category totals for the last N days.
- * @param {number} days
- * @returns {{ transport: number, energy: number, food: number, shopping: number }}
- */
-function getCategoryTotalsForLastNDays(days) {
-  const result = { transport: 0, energy: 0, food: 0, shopping: 0 };
-  const cutoff = dateNDaysAgo(days - 1);
-  state.activities
-    .filter(a => a.date >= cutoff)
-    .forEach(a => { if (result[a.category] !== undefined) result[a.category] += a.co2kg; });
-  return result;
-}
-
-/**
- * Returns the total count of all activities ever logged.
- * @param {object} s - state object
- * @returns {number}
- */
-function getTotalActivities(s) {
-  return s.activities.length;
-}
-
-/**
- * Returns the count of unique days that have at least one logged activity.
- * @param {object} s
- * @returns {number}
- */
-function getUniqueDaysLogged(s) {
-  return new Set(s.activities.map(a => a.date)).size;
-}
-
-/**
- * Counts how many times a specific activityType was logged.
- * @param {object} s
- * @param {string} type
- * @returns {number}
- */
-function countActivityType(s, type) {
-  return s.activities.filter(a => a.activityType === type).reduce((sum, a) => sum + a.quantity, 0);
-}
-
-/**
- * Checks if the user ever had a day under a given threshold.
- * @param {object} s
- * @param {number} threshold
- * @returns {boolean}
- */
-function hasHadDayUnder(s, threshold) {
-  const days = {};
-  s.activities.forEach(a => {
-    if (!days[a.date]) days[a.date] = 0;
-    days[a.date] += a.co2kg;
+  // Sidebar nav items
+  document.querySelectorAll('.nav-item[data-page]').forEach(item => {
+    item.addEventListener('click', () => navigateTo(item.dataset.page));
   });
-  return Object.values(days).some(v => v > 0 && v < threshold);
-}
 
-/**
- * Returns total walking/cycling km logged across all activities.
- * @param {object} s
- * @returns {number}
- */
-function totalCyclingKm(s) {
-  return s.activities
-    .filter(a => a.activityType === 'Walking/Cycling')
-    .reduce((sum, a) => sum + a.quantity, 0);
-}
-
-/**
- * Checks if user has had N consecutive flight-free logged days.
- * @param {object} s
- * @param {number} n
- * @returns {boolean}
- */
-function hasFlightFreeStreak(s, n) {
-  const loggedDates = [...new Set(s.activities.map(a => a.date))].sort();
-  if (loggedDates.length < n) return false;
-
-  let consecutive = 0;
-  for (const date of loggedDates) {
-    const hasFlights = s.activities.some(a =>
-      a.date === date && (a.activityType === 'Domestic flight' || a.activityType === 'Long-haul flight')
-    );
-    if (!hasFlights) {
-      consecutive++;
-      if (consecutive >= n) return true;
-    } else {
-      consecutive = 0;
-    }
-  }
-  return false;
-}
-
-/**
- * Finds the category with the highest total CO2 in the last 30 days.
- * @returns {{ category: string, total: number }}
- */
-function getBiggestCategory() {
-  const totals = getCategoryTotalsForLastNDays(30);
-  let biggest = 'transport';
-  let max = 0;
-  Object.entries(totals).forEach(([cat, total]) => {
-    if (total > max) { max = total; biggest = cat; }
+  // Mobile tabs
+  document.querySelectorAll('.mobile-tab[data-page]').forEach(tab => {
+    tab.addEventListener('click', () => navigateTo(tab.dataset.page));
   });
-  return { category: biggest, total: max };
+
+  // Mobile menu toggle
+  const menuToggle = document.getElementById('menuToggle');
+  if (menuToggle) {
+    menuToggle.addEventListener('click', () => {
+      const isOpen = document.getElementById('sidebar').classList.contains('open');
+      if (isOpen) closeMobileSidebar(); else openMobileSidebar();
+    });
+  }
+
+  // Sidebar overlay click to close
+  const overlay = document.getElementById('sidebarOverlay');
+  if (overlay) overlay.addEventListener('click', closeMobileSidebar);
+
+  // Theme toggle
+  const themeToggle = document.getElementById('themeToggle');
+  if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
+
+  // Category tabs
+  document.querySelectorAll('.cat-tab[data-cat]').forEach(tab => {
+    tab.addEventListener('click', () => switchCategory(tab.dataset.cat));
+  });
+
+  // Log form
+  const logForm = document.getElementById('logForm');
+  if (logForm) logForm.addEventListener('submit', handleLogSubmit);
+
+  // Live CO2 preview — transport
+  document.getElementById('transportType').addEventListener('change', updateCO2Preview);
+  document.getElementById('transportQty').addEventListener('input', updateCO2Preview);
+
+  // Live CO2 preview — energy
+  document.getElementById('energyType').addEventListener('change', updateCO2Preview);
+  document.getElementById('energyQty').addEventListener('input', updateCO2Preview);
+
+  // Live CO2 preview — food
+  document.getElementById('foodType').addEventListener('change', updateCO2Preview);
+  document.getElementById('foodQty').addEventListener('input', updateCO2Preview);
+
+  // Live CO2 preview — shopping
+  document.getElementById('shoppingType').addEventListener('change', updateCO2Preview);
+  document.getElementById('shoppingQty').addEventListener('input', updateCO2Preview);
+
+  // Energy unit label update on type change
+  document.getElementById('energyType').addEventListener('change', () => {
+    const type = document.getElementById('energyType').value;
+    const factor = EMISSION_FACTORS.energy[type];
+    const label = document.getElementById('energyUnitLabel');
+    if (label && factor) label.textContent = `Quantity (${factor.unit})`;
+  });
+
+  // Chat send button
+  const sendBtn = document.getElementById('chatSendBtn');
+  if (sendBtn) sendBtn.addEventListener('click', () => {
+    const input = document.getElementById('chatInput');
+    if (input) handleChatMessage(input.value);
+  });
+
+  // Chat input — send on Enter
+  const chatInput = document.getElementById('chatInput');
+  if (chatInput) {
+    chatInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleChatMessage(chatInput.value);
+      }
+    });
+  }
+
+  // Quick question buttons
+  document.querySelectorAll('.quick-q-btn[data-q]').forEach(btn => {
+    btn.addEventListener('click', () => handleChatMessage(btn.dataset.q));
+  });
 }
 
+document.addEventListener('DOMContentLoaded', () => {
+
+  // 1. Load state from localStorage
+  state = loadState();
+
+  // 2. Ensure unlockedAchievements array exists
+  if (!state.unlockedAchievements) state.unlockedAchievements = [];
+
+  // 3. Apply theme
+  applyTheme();
+
+  // 4. Update streak (in case day rolled over)
+  updateStreak();
+
+  // 5. Wire all event listeners
+  initEventListeners();
+
+  // 6. Set today's date display
+  renderTodayDate();
+
+  // 7. Render today's log (default page)
+  renderTodayPage();
+  updateCO2Preview();
+
+  // 8. Update sidebar stats
+  updateSidebarStats();
+
+  // 9. Auto-check challenges based on any existing data
+  checkAndAutoVerifyChallenges();
+
+  // 10. Check achievements
+  checkAchievements();
+
+  // 11. Save any streak update
+  saveState();
+
+  console.log('%c📗 Carbon Diary Initialized', 'color: #2d6a4f; font-weight: bold; font-size: 16px;');
+  console.log('%cState:', 'color: #52b788;', {
+    activities: state.activities.length,
+    streak: state.streak.current,
+    points: state.points,
+    theme: state.theme,
+  });
+
+// ============================================================
+// PAGE NAVIGATION
+// ============================================================
+
 /**
- * Generates a unique activity ID.
- * @returns {string}
+ * Navigates to a given page, hiding all others.
+ * Also triggers page-specific rendering.
+ * @param {string} pageId - e.g. 'page-today'
  */
-function generateId() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-}
+function navigateTo(pageId) {
+  // Hide all pages
+  document.querySelectorAll('.page').forEach(p => {
+    p.classList.remove('active');
+    p.hidden = true;
+  });
 
-/* ================================================================
-   CALCULATION
-================================================================ */
+  // Show target page
+  const target = document.getElementById(pageId);
+  if (target) {
+    target.classList.add('active');
+    target.hidden = false;
+  }
 
-// calcCO2 is now imported from js/calculations.js
+  // Update nav active states (sidebar)
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.classList.toggle('active', item.dataset.page === pageId);
+  });
 
-/* ================================================================
-   UI — TODAY'S LOG PAGE
-================================================================ */
+  // Update mobile tabs
+  document.querySelectorAll('.mobile-tab').forEach(tab => {
+    tab.classList.toggle('active', tab.dataset.page === pageId);
+  });
 
-/**
- * Updates the today's date display in the page header.
- */
-function renderTodayDate() {
-  const el = document.getElementById('todayDate');
-  if (el) el.textContent = formatDateFriendly(todayStr());
+  // Close mobile sidebar
+  closeMobileSidebar();
+
+  // Page-specific render
+  if (pageId === 'page-today') {
+    renderTodayPage();
+    renderTodayDate();
+  } else if (pageId === 'page-progress') {
+    renderProgressPage();
+  } else if (pageId === 'page-challenges') {
+    renderChallengesPage();
+  } else if (pageId === 'page-coach') {
+    renderChatMessages();
+  }
 }
 
 /**
@@ -585,6 +226,18 @@ function switchCategory(cat) {
   });
 
   updateCO2Preview();
+}
+
+// ============================================================
+// TODAY'S LOG — QUICK LOG PANEL
+// ============================================================
+
+/**
+ * Updates the today's date display in the page header.
+ */
+function renderTodayDate() {
+  const el = document.getElementById('todayDate');
+  if (el) el.textContent = formatDateFriendly(getTodayString());
 }
 
 /**
@@ -662,7 +315,7 @@ function handleLogSubmit(e) {
 
   const activity = {
     id: generateId(),
-    date: todayStr(),
+    date: getTodayString(),
     category: activeCategory,
     activityType,
     quantity,
@@ -682,24 +335,15 @@ function handleLogSubmit(e) {
   showToast(`✅ Logged: ${co2kg.toFixed(2)} kg CO₂`);
 }
 
-/**
- * Deletes an activity by ID, updates state and UI.
- * @param {string} id
- */
-function deleteActivity(id) {
-  state.activities = state.activities.filter(a => a.id !== id);
-  updateStreak();
-  saveState();
-  renderTodayPage();
-  checkAndAutoVerifyChallenges();
-  updateSidebarStats();
-}
+// ============================================================
+// TODAY'S LOG — ENTRIES LIST
+// ============================================================
 
 /**
  * Renders the full Today's Log page including entries list and summary.
  */
 function renderTodayPage() {
-  const today = todayStr();
+  const today = getTodayString();
   const todayEntries = getActivitiesForDate(today)
     .sort((a, b) => b.timestamp - a.timestamp);
   const todayTotal = todayEntries.reduce((s, e) => s + e.co2kg, 0);
@@ -747,29 +391,16 @@ function renderTodayPage() {
 }
 
 /**
- * Renders the streak banner with green/red/neutral state.
- * @param {number} todayTotal - Today's CO2 total in kg
+ * Deletes an activity by ID, updates state and UI.
+ * @param {string} id
  */
-function renderStreakBanner(todayTotal) {
-  const banner = document.getElementById('streakBanner');
-  const text = document.getElementById('streakBannerText');
-  if (!banner || !text) return;
-
-  const streak = state.streak.current;
-  const hasLoggedToday = getActivitiesForDate(todayStr()).length > 0;
-
-  banner.className = 'streak-banner';
-
-  if (!hasLoggedToday) {
-    banner.classList.add('neutral');
-    text.textContent = '🌱 Start logging to build your green streak!';
-  } else if (todayTotal < DAILY_TARGET_KG) {
-    banner.classList.add('green');
-    text.textContent = `🔥 ${streak} Day Green Streak! You're under the ${DAILY_TARGET_KG}kg daily target.`;
-  } else {
-    banner.classList.add('red');
-    text.textContent = `⚠️ ${streak} Day Streak — Today is above ${DAILY_TARGET_KG}kg. Keep logging to improve!`;
-  }
+function deleteActivity(id) {
+  state.activities = state.activities.filter(a => a.id !== id);
+  updateStreak();
+  saveState();
+  renderTodayPage();
+  checkAndAutoVerifyChallenges();
+  updateSidebarStats();
 }
 
 /**
@@ -797,9 +428,9 @@ function renderSummaryBar(entries, total) {
   }
 }
 
-/* ================================================================
-   UI — MY PROGRESS PAGE
-================================================================ */
+// ============================================================
+// PROGRESS PAGE
+// ============================================================
 
 /**
  * Renders the full progress page (stat cards, heatmap, charts).
@@ -816,7 +447,7 @@ function renderProgressPage() {
  * Renders the 4 stat cards (today, week, month, yearly pace).
  */
 function renderStatCards() {
-  const today = getDayTotal(todayStr());
+  const today = getDayTotal(getTodayString());
   const week = getTotalForLastNDays(7);
   const month = getTotalForLastNDays(30);
   const yearlyPace = (month / 30) * 365 / 1000; // tons
@@ -891,7 +522,7 @@ function renderCalendarHeatmap() {
     const dateStr = d.toISOString().split('T')[0];
     const dayNum = d.getDate();
     const total = getDayTotal(dateStr);
-    const isToday = dateStr === todayStr();
+    const isToday = dateStr === getTodayString();
     const hasData = getActivitiesForDate(dateStr).length > 0;
 
     let lvlClass = 'no-data';
@@ -1149,9 +780,9 @@ function renderComparisonCard() {
   container.innerHTML = rows;
 }
 
-/* ================================================================
-   UI — CHALLENGES PAGE
-================================================================ */
+// ============================================================
+// CHALLENGES PAGE
+// ============================================================
 
 /**
  * Picks 3 challenges for today using date-seeded pseudo-random selection.
@@ -1160,7 +791,7 @@ function renderComparisonCard() {
  */
 function getTodayChallenges() {
   // Seed from today's date string
-  const seed = todayStr().replace(/-/g, '');
+  const seed = getTodayString().replace(/-/g, '');
   let rng = parseInt(seed, 10);
 
   function seededRandom() {
@@ -1183,7 +814,7 @@ function getTodayChallenges() {
  * @returns {string[]}
  */
 function getTodayCompletedChallenges() {
-  return state.completedChallenges[todayStr()] || [];
+  return state.completedChallenges[getTodayString()] || [];
 }
 
 /**
@@ -1193,7 +824,7 @@ function getTodayCompletedChallenges() {
  * @param {number} points
  */
 function completeChallenge(challengeId, points) {
-  const today = todayStr();
+  const today = getTodayString();
   if (!state.completedChallenges[today]) state.completedChallenges[today] = [];
   if (!state.completedChallenges[today].includes(challengeId)) {
     state.completedChallenges[today].push(challengeId);
@@ -1210,7 +841,7 @@ function completeChallenge(challengeId, points) {
  * Called after every log add/delete.
  */
 function checkAndAutoVerifyChallenges() {
-  const today = todayStr();
+  const today = getTodayString();
   const todayEntries = getActivitiesForDate(today);
   const todayTotal = todayEntries.reduce((s, e) => s + e.co2kg, 0);
   const challenges = getTodayChallenges();
@@ -1239,44 +870,6 @@ function renderChallengesPage() {
 }
 
 /**
- * Renders the points and level display.
- */
-function renderPointsDisplay() {
-  const points = state.points;
-  const pointsEl = document.getElementById('pointsDisplay');
-  if (pointsEl) pointsEl.textContent = points;
-
-  // Determine current level
-  let currentLevel = LEVELS[0];
-  for (let i = LEVELS.length - 1; i >= 0; i--) {
-    if (points >= LEVELS[i].min) { currentLevel = LEVELS[i]; break; }
-  }
-
-  const levelBadge = document.getElementById('levelBadge');
-  if (levelBadge) levelBadge.textContent = currentLevel.name;
-
-  // Progress bar
-  const fill = document.getElementById('levelProgressFill');
-  const bar = document.getElementById('levelProgressBar');
-  const text = document.getElementById('levelProgressText');
-
-  if (currentLevel.max === Infinity) {
-    if (fill) fill.style.width = '100%';
-    if (bar) bar.setAttribute('aria-valuenow', '100');
-    if (text) text.textContent = 'Max level reached! 🌲';
-  } else {
-    const rangeMin = currentLevel.min;
-    const rangeMax = currentLevel.max + 1;
-    const pct = ((points - rangeMin) / (rangeMax - rangeMin)) * 100;
-    if (fill) fill.style.width = `${pct.toFixed(1)}%`;
-    if (bar) bar.setAttribute('aria-valuenow', pct.toFixed(0));
-
-    const nextLevel = LEVELS[LEVELS.findIndex(l => l === currentLevel) + 1];
-    if (text && nextLevel) text.textContent = `${rangeMax - points} pts to ${nextLevel.name}`;
-  }
-}
-
-/**
  * Renders today's 3 challenge cards.
  */
 function renderTodayChallenges() {
@@ -1284,7 +877,7 @@ function renderTodayChallenges() {
   const dateEl = document.getElementById('challengesDate');
   if (!container) return;
 
-  if (dateEl) dateEl.textContent = formatDateFriendly(todayStr());
+  if (dateEl) dateEl.textContent = formatDateFriendly(getTodayString());
 
   const challenges = getTodayChallenges();
   const completed = getTodayCompletedChallenges();
@@ -1315,51 +908,9 @@ function renderTodayChallenges() {
   }).join('');
 }
 
-/**
- * Checks all achievement conditions against current state and unlocks any earned ones.
- */
-function checkAchievements() {
-  let changed = false;
-  ACHIEVEMENTS.forEach(ach => {
-    if (!state.unlockedAchievements) state.unlockedAchievements = [];
-    if (!state.unlockedAchievements.includes(ach.id) && ach.check(state)) {
-      state.unlockedAchievements.push(ach.id);
-      changed = true;
-      showToast(`🏆 Achievement unlocked: ${ach.name}!`);
-    }
-  });
-  if (changed) {
-    saveState();
-    renderAchievements();
-  }
-}
-
-/**
- * Renders the achievement wall with locked/unlocked states.
- */
-function renderAchievements() {
-  const container = document.getElementById('achievementsGrid');
-  if (!container) return;
-
-  const unlocked = state.unlockedAchievements || [];
-
-  container.innerHTML = ACHIEVEMENTS.map(ach => {
-    const isUnlocked = unlocked.includes(ach.id);
-    return `
-      <div class="achievement-item ${isUnlocked ? 'unlocked' : 'locked'}"
-        role="article"
-        aria-label="${ach.name}: ${isUnlocked ? 'Unlocked' : 'Locked'}">
-        <div class="achievement-emoji" aria-hidden="true">${ach.emoji}</div>
-        <div class="achievement-name">${ach.name}</div>
-        <div class="achievement-desc">${ach.desc}</div>
-        ${isUnlocked ? `<div class="achievement-unlocked-badge">Unlocked ✓</div>` : ''}
-      </div>`;
-  }).join('');
-}
-
-/* ================================================================
-   UI — AI COACH (CHAT)
-================================================================ */
+// ============================================================
+// AI COACH PAGE
+// ============================================================
 
 /**
  * Renders all persisted chat messages to the chat window.
@@ -1511,157 +1062,6 @@ function handleChatMessage(message) {
 }
 
 /**
- * Generates a smart AI response based on message content and user's logged data.
- * @param {string} msgLower - Lower-cased user message
- * @returns {string}
- */
-function generateCoachResponse(msgLower) {
-  const month = getTotalForLastNDays(30);
-  const today = getDayTotal(todayStr());
-  const categoryTotals = getCategoryTotalsForLastNDays(30);
-  const biggest = getBiggestCategory();
-  const yearlyPace = month > 0 ? (month / 30) * 365 / 1000 : null;
-  const streak = state.streak.current;
-  const totalActs = state.activities.length;
-
-  // No data at all
-  if (totalActs === 0) {
-    return "Start logging today's activities and I'll give you personalized advice! What have you done today — any commute, meals, or home energy use?";
-  }
-
-  // BIGGEST SOURCE
-  if (msgLower.includes('biggest') || msgLower.includes('worst') || msgLower.includes('most')) {
-    const cfg = CAT_CONFIG[biggest.category];
-    const biggestPct = month > 0 ? ((biggest.total / month) * 100).toFixed(0) : 0;
-    const tips = {
-      transport: 'Try switching 2 days per week to public transit, or consider walking/cycling for short trips.',
-      energy: 'Review your appliance usage — reducing AC by 2hrs/day and switching to LED bulbs can make a big difference.',
-      food: 'Replacing 2 beef or lamb meals per week with vegetarian alternatives can save significant CO₂.',
-      shopping: 'Consider secondhand shopping and reducing online deliveries by batching orders.',
-    };
-    return `Based on your logs, ${cfg.icon} ${cfg.label} is your biggest source at ${biggest.total.toFixed(1)}kg this month — ${biggestPct}% of your total.\n\n💡 Tip: ${tips[biggest.category]}`;
-  }
-
-  // TRANSPORT
-  if (msgLower.includes('transport') || msgLower.includes('car') || msgLower.includes('commute') || msgLower.includes('driving')) {
-    const transportKg = categoryTotals.transport;
-    const transportPct = month > 0 ? ((transportKg / month) * 100).toFixed(0) : 0;
-    if (transportKg === 0) {
-      return "You haven't logged any transport this month — great start! Even logging zero is useful data. Keep logging your journeys.";
-    }
-    const weeklyCarKg = state.activities
-      .filter(a => a.date >= dateNDaysAgo(6) && a.category === 'transport' && a.activityType.startsWith('Car'))
-      .reduce((s, a) => s + a.co2kg, 0);
-    const savings = (weeklyCarKg * 0.4 * 2 / 7 * 4).toFixed(1);
-    return `Your transport this month: ${transportKg.toFixed(1)}kg (${transportPct}% of your total).\n\n${transportKg > categoryTotals.food
-      ? `🚗 Transport is your top category. Switching 2 days per week to public transit or cycling could save ~${savings}kg/month — roughly ${(parseFloat(savings) * 12 / 1000).toFixed(2)}t per year!`
-      : '✅ Your transport footprint is below other categories. Keep using sustainable transport modes!'}`;
-  }
-
-  // PARIS TARGET
-  if (msgLower.includes('paris') || msgLower.includes('target') || msgLower.includes('on track') || msgLower.includes('climate')) {
-    if (!yearlyPace) return "Log more activities and I can tell you exactly how you compare to the Paris target (2.0t/year)!";
-    const diff = (yearlyPace - 2.0).toFixed(1);
-    if (yearlyPace <= 2.0) {
-      return `🎉 Amazing! You're currently on pace for ${yearlyPace.toFixed(1)}t CO₂/year — already within the Paris Agreement 2°C target (2.0t/year)!\n\nYou're among the most climate-conscious individuals globally. Keep it up!`;
-    } else if (yearlyPace <= 4.0) {
-      return `You're on pace for ${yearlyPace.toFixed(1)}t CO₂/year. The Paris target is 2.0t/year — you're ${diff}t above it.\n\n🎯 You're getting there! Focus on your biggest category (${CAT_CONFIG[biggest.category].label}) to close the gap.`;
-    } else {
-      const top3 = Object.entries(categoryTotals)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 3)
-        .map(([cat]) => `${CAT_CONFIG[cat].icon} ${CAT_CONFIG[cat].label}`);
-      return `You're on pace for ${yearlyPace.toFixed(1)}t CO₂/year. The Paris target is 2.0t/year — you're ${diff}t above it.\n\nYour top 3 categories to target:\n${top3.join('\n')}\n\nFocusing on even one of these can make a significant difference!`;
-    }
-  }
-
-  // THIS WEEK / CHANGE
-  if (msgLower.includes('week') || msgLower.includes('this week') || msgLower.includes('change')) {
-    const weekDays = [];
-    for (let i = 6; i >= 0; i--) {
-      const ds = dateNDaysAgo(i);
-      weekDays.push({ ds, label: getDayLabel(ds), total: getDayTotal(ds) });
-    }
-    const worstDay = weekDays.reduce((a, b) => a.total > b.total ? a : b);
-    const weekTotal = weekDays.reduce((s, d) => s + d.total, 0);
-    const weekCats = getCategoryTotalsForLastNDays(7);
-    const weekBiggest = Object.entries(weekCats).sort((a, b) => b[1] - a[1])[0];
-    const weekBiggestCfg = CAT_CONFIG[weekBiggest[0]];
-
-    if (weekTotal === 0) return "No data for this week yet. Start logging and I'll analyse your week for you!";
-
-    return `This week you logged ${weekTotal.toFixed(1)}kg total.\n\n📅 Your highest day was ${worstDay.label} at ${worstDay.total.toFixed(1)}kg, driven mainly by ${weekBiggestCfg.icon} ${weekBiggestCfg.label}.\n\n💡 This week's tip: ${getWeeklyTip(weekBiggest[0])}`;
-  }
-
-  // FOOD / DIET
-  if (msgLower.includes('food') || msgLower.includes('diet') || msgLower.includes('eat') || msgLower.includes('meal')) {
-    const foodKg = categoryTotals.food;
-    if (foodKg === 0) return "You haven't logged any meals this month. Your food choices have a big impact — try logging today's meals!";
-    
-    const beefCount = countActivityType(state, 'Beef meal');
-    const lambCount = countActivityType(state, 'Lamb meal');
-    const porkCount = countActivityType(state, 'Pork meal');
-    const highImpactCount = beefCount + lambCount + porkCount;
-    const veganCount = countActivityType(state, 'Vegan meal') + countActivityType(state, 'Vegetarian meal');
-
-    if (beefCount > 0 || lambCount > 0) {
-      const saving = ((beefCount * 6.61 + lambCount * 5.84) - (beefCount + lambCount) * 1.26).toFixed(1);
-      return `Your food emissions this month: ${foodKg.toFixed(1)}kg.\n\n🥩 Red meat is a major contributor (${beefCount} beef, ${lambCount} lamb). Replacing these with chicken could save ~${saving}kg.\n\nSwitching to plant-based saves even more!`;
-    } else if (veganCount > highImpactCount) {
-      return `Your food emissions this month: ${foodKg.toFixed(1)}kg.\n\n🌱 Your diet is very low-carbon! You've logged ${veganCount} plant-based meals vs ${highImpactCount} high-impact meats. Vegan/vegetarian choices are excellent for the planet.`;
-    } else {
-      return `Your food emissions this month: ${foodKg.toFixed(1)}kg.\n\n💡 Consider adding more plant-based meals to your week. Even swapping one meat meal per week for a vegetarian option makes a measurable difference!`;
-    }
-  }
-
-  // ENERGY / ELECTRICITY / HOME
-  if (msgLower.includes('energy') || msgLower.includes('electricity') || msgLower.includes('home') || msgLower.includes('heating')) {
-    const energyKg = categoryTotals.energy;
-    if (energyKg === 0) return "No energy usage logged this month. Try tracking your electricity, heating, and appliance use!";
-    const acKg = state.activities
-      .filter(a => a.date >= dateNDaysAgo(29) && a.activityType === 'Air conditioning (hour)')
-      .reduce((s, a) => s + a.co2kg, 0);
-    const heatingKg = state.activities
-      .filter(a => a.date >= dateNDaysAgo(29) && a.activityType === 'Gas heating (hour)')
-      .reduce((s, a) => s + a.co2kg, 0);
-
-    let tip = 'General energy tip: switch to LED bulbs throughout your home and unplug devices on standby.';
-    if (acKg > heatingKg && acKg > 0) {
-      tip = `AC is your biggest energy source (${acKg.toFixed(1)}kg/month). Setting your AC 2°C warmer can reduce emissions by ~10%.`;
-    } else if (heatingKg > 0) {
-      tip = `Gas heating accounts for ${heatingKg.toFixed(1)}kg this month. Lowering your thermostat by 1°C saves ~3% on heating bills and CO₂.`;
-    }
-    return `Home energy: ${energyKg.toFixed(1)}kg this month.\n\n💡 ${tip}`;
-  }
-
-  // STREAK
-  if (msgLower.includes('streak') || msgLower.includes('days') || msgLower.includes('consistent') || msgLower.includes('logging')) {
-    if (streak === 0) return "You don't have an active streak yet. Log at least one activity today to start your streak! Users who log for 7+ days reduce emissions by 15% on average.";
-    const message = streak >= 7
-      ? "You're a logging champion! Consistent tracking is proven to drive behaviour change."
-      : streak >= 3
-      ? "Great momentum! You're building a solid habit."
-      : "Good start! Keep logging daily to build your streak.";
-    return `You have a ${streak}-day streak! 🔥 ${message}\n\nResearch shows users who log for 7+ days reduce their emissions by ~15% on average — because awareness drives behaviour change.`;
-  }
-
-  // DEFAULT
-  const todayActivities = getActivitiesForDate(todayStr());
-  if (todayActivities.length === 0) {
-    return "Start logging today's activities and I'll give you personalized advice! What have you done today — any commute, meals, or home energy use?";
-  }
-
-  // Find today's top category
-  const todayCats = { transport: 0, energy: 0, food: 0, shopping: 0 };
-  todayActivities.forEach(a => { if (todayCats[a.category] !== undefined) todayCats[a.category] += a.co2kg; });
-  const topToday = Object.entries(todayCats).sort((a, b) => b[1] - a[1])[0];
-  const topCfg = CAT_CONFIG[topToday[0]];
-  const todayTotal = todayActivities.reduce((s, a) => s + a.co2kg, 0);
-
-  return `Today so far: ${todayTotal.toFixed(1)}kg CO₂. Your main source today is ${topCfg.icon} ${topCfg.label} (${topToday[1].toFixed(1)}kg).\n\n💡 ${getDiagTip(topToday[0], topToday[1])}\n\nTry asking me about your biggest category, weekly trend, or Paris target!`;
-}
-
-/**
  * Returns a weekly improvement tip for a given category.
  * @param {string} category
  * @returns {string}
@@ -1692,34 +1092,9 @@ function getDiagTip(category, kg) {
   return tips[category] || 'Keep logging to get more personalised advice!';
 }
 
-/* ================================================================
-   SIDEBAR STATS
-================================================================ */
-
-/**
- * Updates the quick stats displayed in the sidebar.
- */
-function updateSidebarStats() {
-  const today = getDayTotal(todayStr());
-  const month = getTotalForLastNDays(30);
-  const streak = state.streak.current;
-
-  const todayEl = document.getElementById('sidebarToday');
-  const monthEl = document.getElementById('sidebarMonth');
-  const streakEl = document.getElementById('sidebarStreakText');
-
-  if (todayEl) todayEl.textContent = `${today.toFixed(1)} kg`;
-  if (monthEl) monthEl.textContent = `${month.toFixed(1)} kg`;
-  if (streakEl) {
-    streakEl.textContent = streak > 0
-      ? `${streak} Day Streak!`
-      : 'Start your streak today!';
-  }
-}
-
-/* ================================================================
-   THEME
-================================================================ */
+// ============================================================
+// THEME & SIDEBAR
+// ============================================================
 
 /**
  * Applies the saved theme to the HTML element.
@@ -1753,59 +1128,6 @@ function updateThemeButton() {
   }
 }
 
-/* ================================================================
-   PAGE NAVIGATION
-================================================================ */
-
-/**
- * Navigates to a given page, hiding all others.
- * Also triggers page-specific rendering.
- * @param {string} pageId - e.g. 'page-today'
- */
-function navigateTo(pageId) {
-  // Hide all pages
-  document.querySelectorAll('.page').forEach(p => {
-    p.classList.remove('active');
-    p.hidden = true;
-  });
-
-  // Show target page
-  const target = document.getElementById(pageId);
-  if (target) {
-    target.classList.add('active');
-    target.hidden = false;
-  }
-
-  // Update nav active states (sidebar)
-  document.querySelectorAll('.nav-item').forEach(item => {
-    item.classList.toggle('active', item.dataset.page === pageId);
-  });
-
-  // Update mobile tabs
-  document.querySelectorAll('.mobile-tab').forEach(tab => {
-    tab.classList.toggle('active', tab.dataset.page === pageId);
-  });
-
-  // Close mobile sidebar
-  closeMobileSidebar();
-
-  // Page-specific render
-  if (pageId === 'page-today') {
-    renderTodayPage();
-    renderTodayDate();
-  } else if (pageId === 'page-progress') {
-    renderProgressPage();
-  } else if (pageId === 'page-challenges') {
-    renderChallengesPage();
-  } else if (pageId === 'page-coach') {
-    renderChatMessages();
-  }
-}
-
-/* ================================================================
-   MOBILE SIDEBAR
-================================================================ */
-
 /**
  * Opens the mobile sidebar overlay.
  */
@@ -1836,11 +1158,135 @@ function closeMobileSidebar() {
   if (toggle) toggle.setAttribute('aria-expanded', 'false');
 }
 
-/* ================================================================
-   TOAST NOTIFICATION
-================================================================ */
+/**
+ * Updates the quick stats displayed in the sidebar.
+ */
+function updateSidebarStats() {
+  const today = getDayTotal(getTodayString());
+  const month = getTotalForLastNDays(30);
+  const streak = state.streak.current;
 
-let toastTimeout = null;
+  const todayEl = document.getElementById('sidebarToday');
+  const monthEl = document.getElementById('sidebarMonth');
+  const streakEl = document.getElementById('sidebarStreakText');
+
+  if (todayEl) todayEl.textContent = `${today.toFixed(1)} kg`;
+  if (monthEl) monthEl.textContent = `${month.toFixed(1)} kg`;
+  if (streakEl) {
+    streakEl.textContent = streak > 0
+      ? `${streak} Day Streak!`
+      : 'Start your streak today!';
+  }
+}
+
+// ============================================================
+// STREAK & GAMIFICATION
+// ============================================================
+
+/**
+ * Recalculates and updates the streak based on when user last logged.
+ * Called on page load and after every new activity is added.
+ */
+function updateStreak() {
+  const today = getTodayString();
+  const yesterday = dateNDaysAgo(1);
+  const lastLog = state.streak.lastLogDate;
+
+  const todayActivities = getActivitiesForDate(today);
+  const hasLoggedToday = todayActivities.length > 0;
+
+  if (!lastLog) {
+    // First time ever — initialise cleanly so current is always a number
+    state.streak.current = hasLoggedToday ? 1 : 0;
+    if (hasLoggedToday) state.streak.lastLogDate = today;
+  } else if (lastLog === today) {
+    // Already counted today — no change needed
+  } else if (lastLog === yesterday) {
+    // Streak continues only if user has also logged today
+    if (hasLoggedToday) {
+      state.streak.current = (state.streak.current || 0) + 1;
+      state.streak.lastLogDate = today;
+    }
+    // If not logged today yet: streak pending, not broken
+  } else {
+    // Gap detected — reset; restart from 1 if they log today
+    if (hasLoggedToday) {
+      state.streak.current = 1;
+      state.streak.lastLogDate = today;
+    } else {
+      state.streak.current = 0;
+      state.streak.lastLogDate = null;
+    }
+  }
+}
+
+/**
+ * Checks all achievement conditions against current state and unlocks any earned ones.
+ */
+function checkAchievements() {
+  let changed = false;
+  ACHIEVEMENTS.forEach(ach => {
+    if (!state.unlockedAchievements) state.unlockedAchievements = [];
+    if (!state.unlockedAchievements.includes(ach.id) && ach.check(state)) {
+      state.unlockedAchievements.push(ach.id);
+      changed = true;
+      showToast(`🏆 Achievement unlocked: ${ach.name}!`);
+    }
+  });
+  if (changed) {
+    saveState();
+    renderAchievements();
+  }
+}
+
+/**
+ * Renders the achievement wall with locked/unlocked states.
+ */
+function renderAchievements() {
+  const container = document.getElementById('achievementsGrid');
+  if (!container) return;
+
+  const unlocked = state.unlockedAchievements || [];
+
+  container.innerHTML = ACHIEVEMENTS.map(ach => {
+    const isUnlocked = unlocked.includes(ach.id);
+    return `
+      <div class="achievement-item ${isUnlocked ? 'unlocked' : 'locked'}"
+        role="article"
+        aria-label="${ach.name}: ${isUnlocked ? 'Unlocked' : 'Locked'}">
+        <div class="achievement-emoji" aria-hidden="true">${ach.emoji}</div>
+        <div class="achievement-name">${ach.name}</div>
+        <div class="achievement-desc">${ach.desc}</div>
+        ${isUnlocked ? `<div class="achievement-unlocked-badge">Unlocked ✓</div>` : ''}
+      </div>`;
+  }).join('');
+}
+
+/**
+ * Renders the streak banner with green/red/neutral state.
+ * @param {number} todayTotal - Today's CO2 total in kg
+ */
+function renderStreakBanner(todayTotal) {
+  const banner = document.getElementById('streakBanner');
+  const text = document.getElementById('streakBannerText');
+  if (!banner || !text) return;
+
+  const streak = state.streak.current;
+  const hasLoggedToday = getActivitiesForDate(getTodayString()).length > 0;
+
+  banner.className = 'streak-banner';
+
+  if (!hasLoggedToday) {
+    banner.classList.add('neutral');
+    text.textContent = '🌱 Start logging to build your green streak!';
+  } else if (todayTotal < DAILY_TARGET_KG) {
+    banner.classList.add('green');
+    text.textContent = `🔥 ${streak} Day Green Streak! You're under the ${DAILY_TARGET_KG}kg daily target.`;
+  } else {
+    banner.classList.add('red');
+    text.textContent = `⚠️ ${streak} Day Streak — Today is above ${DAILY_TARGET_KG}kg. Keep logging to improve!`;
+  }
+}
 
 /**
  * Shows a brief toast notification and announces it to screen readers.
@@ -1864,168 +1310,234 @@ function showToast(message) {
   }
 }
 
-/* ================================================================
-   UTILITIES
-================================================================ */
+/**
+ * Renders the points and level display.
+ */
+function renderPointsDisplay() {
+  const points = state.points;
+  const pointsEl = document.getElementById('pointsDisplay');
+  if (pointsEl) pointsEl.textContent = points;
 
-// clamp is now imported from js/calculations.js
+  // Determine current level
+  let currentLevel = LEVELS[0];
+  for (let i = LEVELS.length - 1; i >= 0; i--) {
+    if (points >= LEVELS[i].min) { currentLevel = LEVELS[i]; break; }
+  }
+
+  const levelBadge = document.getElementById('levelBadge');
+  if (levelBadge) levelBadge.textContent = currentLevel.name;
+
+  // Progress bar
+  const fill = document.getElementById('levelProgressFill');
+  const bar = document.getElementById('levelProgressBar');
+  const text = document.getElementById('levelProgressText');
+
+  if (currentLevel.max === Infinity) {
+    if (fill) fill.style.width = '100%';
+    if (bar) bar.setAttribute('aria-valuenow', '100');
+    if (text) text.textContent = 'Max level reached! 🌲';
+  } else {
+    const rangeMin = currentLevel.min;
+    const rangeMax = currentLevel.max + 1;
+    const pct = ((points - rangeMin) / (rangeMax - rangeMin)) * 100;
+    if (fill) fill.style.width = `${pct.toFixed(1)}%`;
+    if (bar) bar.setAttribute('aria-valuenow', pct.toFixed(0));
+
+    const nextLevel = LEVELS[LEVELS.findIndex(l => l === currentLevel) + 1];
+    if (text && nextLevel) text.textContent = `${rangeMax - points} pts to ${nextLevel.name}`;
+  }
+}
+
+
+// ============================================================
+// HELPERS & DATA QUERIES
+// ============================================================
 
 /**
- * Escapes HTML characters to prevent XSS in dynamic content.
- * @param {string} str
+ * Returns a date string N days ago in YYYY-MM-DD format.
+ * @param {number} daysAgo
  * @returns {string}
  */
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;')
-    .replace(/\n/g, '<br/>');
+function dateNDaysAgo(daysAgo) {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  return d.toISOString().split('T')[0];
 }
 
-/* ================================================================
-   EVENT LISTENERS
-================================================================ */
-
 /**
- * Wires up all event listeners for the application.
+ * Formats a YYYY-MM-DD string as "Monday, June 9" style.
+ * @param {string} dateStr
+ * @returns {string}
  */
-function initEventListeners() {
-
-  // Sidebar nav items
-  document.querySelectorAll('.nav-item[data-page]').forEach(item => {
-    item.addEventListener('click', () => navigateTo(item.dataset.page));
-  });
-
-  // Mobile tabs
-  document.querySelectorAll('.mobile-tab[data-page]').forEach(tab => {
-    tab.addEventListener('click', () => navigateTo(tab.dataset.page));
-  });
-
-  // Mobile menu toggle
-  const menuToggle = document.getElementById('menuToggle');
-  if (menuToggle) {
-    menuToggle.addEventListener('click', () => {
-      const isOpen = document.getElementById('sidebar').classList.contains('open');
-      if (isOpen) closeMobileSidebar(); else openMobileSidebar();
-    });
-  }
-
-  // Sidebar overlay click to close
-  const overlay = document.getElementById('sidebarOverlay');
-  if (overlay) overlay.addEventListener('click', closeMobileSidebar);
-
-  // Theme toggle
-  const themeToggle = document.getElementById('themeToggle');
-  if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
-
-  // Category tabs
-  document.querySelectorAll('.cat-tab[data-cat]').forEach(tab => {
-    tab.addEventListener('click', () => switchCategory(tab.dataset.cat));
-  });
-
-  // Log form
-  const logForm = document.getElementById('logForm');
-  if (logForm) logForm.addEventListener('submit', handleLogSubmit);
-
-  // Live CO2 preview — transport
-  document.getElementById('transportType').addEventListener('change', updateCO2Preview);
-  document.getElementById('transportQty').addEventListener('input', updateCO2Preview);
-
-  // Live CO2 preview — energy
-  document.getElementById('energyType').addEventListener('change', updateCO2Preview);
-  document.getElementById('energyQty').addEventListener('input', updateCO2Preview);
-
-  // Live CO2 preview — food
-  document.getElementById('foodType').addEventListener('change', updateCO2Preview);
-  document.getElementById('foodQty').addEventListener('input', updateCO2Preview);
-
-  // Live CO2 preview — shopping
-  document.getElementById('shoppingType').addEventListener('change', updateCO2Preview);
-  document.getElementById('shoppingQty').addEventListener('input', updateCO2Preview);
-
-  // Energy unit label update on type change
-  document.getElementById('energyType').addEventListener('change', () => {
-    const type = document.getElementById('energyType').value;
-    const factor = EMISSION_FACTORS.energy[type];
-    const label = document.getElementById('energyUnitLabel');
-    if (label && factor) label.textContent = `Quantity (${factor.unit})`;
-  });
-
-  // Chat send button
-  const sendBtn = document.getElementById('chatSendBtn');
-  if (sendBtn) sendBtn.addEventListener('click', () => {
-    const input = document.getElementById('chatInput');
-    if (input) handleChatMessage(input.value);
-  });
-
-  // Chat input — send on Enter
-  const chatInput = document.getElementById('chatInput');
-  if (chatInput) {
-    chatInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        handleChatMessage(chatInput.value);
-      }
-    });
-  }
-
-  // Quick question buttons
-  document.querySelectorAll('.quick-q-btn[data-q]').forEach(btn => {
-    btn.addEventListener('click', () => handleChatMessage(btn.dataset.q));
-  });
+function formatDateFriendly(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 }
 
-/* ================================================================
-   INIT — DOMContentLoaded
-================================================================ */
+/**
+ * Formats a YYYY-MM-DD string as "Jun 9" style.
+ * @param {string} dateStr
+ * @returns {string}
+ */
+function formatDateShort(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
 
 /**
- * Application entry point. Loads state, renders initial UI, wires events.
+ * Formats a timestamp as "HH:MM" time string.
+ * @param {number} ts - Unix timestamp in ms
+ * @returns {string}
  */
-document.addEventListener('DOMContentLoaded', () => {
+function formatTime(ts) {
+  return new Date(ts).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+}
 
-  // 1. Load state from localStorage
-  loadState();
+/**
+ * Returns the day-of-week abbreviation for a date string.
+ * @param {string} dateStr
+ * @returns {string}
+ */
+function getDayLabel(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { weekday: 'short' });
+}
 
-  // 2. Ensure unlockedAchievements array exists
-  if (!state.unlockedAchievements) state.unlockedAchievements = [];
+/**
+ * Returns all activities for a specific date string.
+ * @param {string} dateStr - YYYY-MM-DD
+ * @returns {Array}
+ */
+function getActivitiesForDate(dateStr) {
+  return state.activities.filter(a => a.date === dateStr);
+}
 
-  // 3. Apply theme
-  applyTheme();
+/**
+ * Returns the total CO2 for a given date.
+ * @param {string} dateStr
+ * @returns {number}
+ */
+function getDayTotal(dateStr) {
+  return getActivitiesForDate(dateStr).reduce((sum, a) => sum + a.co2kg, 0);
+}
 
-  // 4. Update streak (in case day rolled over)
-  updateStreak();
+/**
+ * Returns total CO2 across the last N days (including today).
+ * @param {number} days
+ * @returns {number}
+ */
+function getTotalForLastNDays(days) {
+  let total = 0;
+  for (let i = 0; i < days; i++) {
+    total += getDayTotal(dateNDaysAgo(i));
+  }
+  return total;
+}
 
-  // 5. Wire all event listeners
-  initEventListeners();
+/**
+ * Returns per-category totals for the last N days.
+ * @param {number} days
+ * @returns {{ transport: number, energy: number, food: number, shopping: number }}
+ */
+function getCategoryTotalsForLastNDays(days) {
+  const result = { transport: 0, energy: 0, food: 0, shopping: 0 };
+  const cutoff = dateNDaysAgo(days - 1);
+  state.activities
+    .filter(a => a.date >= cutoff)
+    .forEach(a => { if (result[a.category] !== undefined) result[a.category] += a.co2kg; });
+  return result;
+}
 
-  // 6. Set today's date display
-  renderTodayDate();
+/**
+ * Returns the total count of all activities ever logged.
+ * @param {object} s - state object
+ * @returns {number}
+ */
+function getTotalActivities(s) {
+  return s.activities.length;
+}
 
-  // 7. Render today's log (default page)
-  renderTodayPage();
-  updateCO2Preview();
+/**
+ * Returns the count of unique days that have at least one logged activity.
+ * @param {object} s
+ * @returns {number}
+ */
+function getUniqueDaysLogged(s) {
+  return new Set(s.activities.map(a => a.date)).size;
+}
 
-  // 8. Update sidebar stats
-  updateSidebarStats();
+/**
+ * Counts how many times a specific activityType was logged.
+ * @param {object} s
+ * @param {string} type
+ * @returns {number}
+ */
+function countActivityType(s, type) {
+  return s.activities.filter(a => a.activityType === type).reduce((sum, a) => sum + a.quantity, 0);
+}
 
-  // 9. Auto-check challenges based on any existing data
-  checkAndAutoVerifyChallenges();
-
-  // 10. Check achievements
-  checkAchievements();
-
-  // 11. Save any streak update
-  saveState();
-
-  console.log('%c📗 Carbon Diary Initialized', 'color: #2d6a4f; font-weight: bold; font-size: 16px;');
-  console.log('%cState:', 'color: #52b788;', {
-    activities: state.activities.length,
-    streak: state.streak.current,
-    points: state.points,
-    theme: state.theme,
+/**
+ * Checks if the user ever had a day under a given threshold.
+ * @param {object} s
+ * @param {number} threshold
+ * @returns {boolean}
+ */
+function hasHadDayUnder(s, threshold) {
+  const days = {};
+  s.activities.forEach(a => {
+    if (!days[a.date]) days[a.date] = 0;
+    days[a.date] += a.co2kg;
   });
-});
+  return Object.values(days).some(v => v > 0 && v < threshold);
+}
+
+/**
+ * Returns total walking/cycling km logged across all activities.
+ * @param {object} s
+ * @returns {number}
+ */
+function totalCyclingKm(s) {
+  return s.activities
+    .filter(a => a.activityType === 'Walking/Cycling')
+    .reduce((sum, a) => sum + a.quantity, 0);
+}
+
+/**
+ * Checks if user has had N consecutive flight-free logged days.
+ * @param {object} s
+ * @param {number} n
+ * @returns {boolean}
+ */
+function hasFlightFreeStreak(s, n) {
+  const loggedDates = [...new Set(s.activities.map(a => a.date))].sort();
+  if (loggedDates.length < n) return false;
+
+  let consecutive = 0;
+  for (const date of loggedDates) {
+    const hasFlights = s.activities.some(a =>
+      a.date === date && (a.activityType === 'Domestic flight' || a.activityType === 'Long-haul flight')
+    );
+    if (!hasFlights) {
+      consecutive++;
+      if (consecutive >= n) return true;
+    } else {
+      consecutive = 0;
+    }
+  }
+  return false;
+}
+
+/**
+ * Finds the category with the highest total CO2 in the last 30 days.
+ * @returns {{ category: string, total: number }}
+ */
+function getBiggestCategory() {
+  const totals = getCategoryTotalsForLastNDays(30);
+  let biggest = 'transport';
+  let max = 0;
+  Object.entries(totals).forEach(([cat, total]) => {
+    if (total > max) { max = total; biggest = cat; }
+  });
+  return { category: biggest, total: max };
+}
+

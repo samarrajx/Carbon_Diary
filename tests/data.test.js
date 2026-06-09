@@ -1,4 +1,8 @@
-const { EMISSION_FACTORS } = require('../js/calculations');
+const { calcCO2, getDailyTotal, filterByCategory, calculateStreak } = require('../js/calculations');
+const { clamp, escapeHtml } = require('../js/utils');
+const { EMISSION_FACTORS } = require('../js/constants');
+
+function formatDateFriendly(dateStr) { const d = new Date(dateStr + 'T12:00:00'); return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }); }
 
 describe('Data Constants Module', () => {
 

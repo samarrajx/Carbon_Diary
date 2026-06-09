@@ -1,10 +1,8 @@
-const {
-  escapeHtml,
-  formatDateFriendly,
-  calcCO2,
-  EMISSION_FACTORS,
-  clamp
-} = require('../js/calculations');
+const { calcCO2, getDailyTotal, filterByCategory, calculateStreak } = require('../js/calculations');
+const { clamp, escapeHtml } = require('../js/utils');
+const { EMISSION_FACTORS } = require('../js/constants');
+
+function formatDateFriendly(dateStr) { const d = new Date(dateStr + 'T12:00:00'); return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }); }
 
 describe('Validation Module', () => {
 
@@ -25,7 +23,9 @@ describe('Validation Module', () => {
     });
   });
 
-  describe('Date formatting', () => {
+  function formatDateFriendly(dateStr) { const d = new Date(dateStr + 'T12:00:00'); return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }); }
+
+describe('Date formatting', () => {
     test('Formats YYYY-MM-DD correctly', () => {
       // 2026-06-09 is a Tuesday
       expect(formatDateFriendly('2026-06-09')).toBe('Tuesday, June 9');
