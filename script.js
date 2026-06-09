@@ -322,8 +322,13 @@ function loadState() {
     const parsed = JSON.parse(raw);
     // Merge to ensure new keys are present
     state = Object.assign(JSON.parse(JSON.stringify(DEFAULT_STATE)), parsed);
+    // Guard against corrupt streak object (edge case for first-time / migrated users)
+    if (!state.streak || typeof state.streak.current !== 'number' || state.streak.current < 0) {
+      state.streak = { current: 0, lastLogDate: null };
+    }
   } catch (e) {
     console.warn('CarbonDiary: Failed to load state.', e);
+    state = JSON.parse(JSON.stringify(DEFAULT_STATE));
   }
 }
 
@@ -406,22 +411,20 @@ function updateStreak() {
   const hasLoggedToday = todayActivities.length > 0;
 
   if (!lastLog) {
-    // First time ever
-    if (hasLoggedToday) {
-      state.streak.current = 1;
-      state.streak.lastLogDate = today;
-    }
+    // First time ever — initialise cleanly so current is always a number
+    state.streak.current = hasLoggedToday ? 1 : 0;
+    if (hasLoggedToday) state.streak.lastLogDate = today;
   } else if (lastLog === today) {
-    // Already counted today — no change
+    // Already counted today — no change needed
   } else if (lastLog === yesterday) {
-    // Streak continues only if user has logged today
+    // Streak continues only if user has also logged today
     if (hasLoggedToday) {
-      state.streak.current += 1;
+      state.streak.current = (state.streak.current || 0) + 1;
       state.streak.lastLogDate = today;
     }
-    // If not logged today yet: streak not broken yet, just pending
+    // If not logged today yet: streak pending, not broken
   } else {
-    // Gap in logging — reset unless user logs today
+    // Gap detected — reset; restart from 1 if they log today
     if (hasLoggedToday) {
       state.streak.current = 1;
       state.streak.lastLogDate = today;
