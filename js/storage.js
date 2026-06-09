@@ -6,15 +6,9 @@
  * @version 1.0.0
  */
 
-// We assume STORAGE_KEY is loaded globally from constants.js
-// If running in Node/Jest, try to require it
-let ACTIVE_STORAGE_KEY = typeof STORAGE_KEY !== 'undefined' ? STORAGE_KEY : 'carbondiary_data';
-if (typeof require !== 'undefined' && typeof STORAGE_KEY === 'undefined') {
-  try {
-    const constants = require('./constants');
-    ACTIVE_STORAGE_KEY = constants.STORAGE_KEY || ACTIVE_STORAGE_KEY;
-  } catch (e) {}
-}
+const STORAGE_KEY_LOCAL = (typeof STORAGE_KEY !== 'undefined') 
+  ? STORAGE_KEY 
+  : 'carbondiary_data';
 
 /**
  * Returns a fresh default state object.
@@ -38,7 +32,7 @@ function getDefaultState() {
  */
 function saveState(state) {
   try {
-    localStorage.setItem(ACTIVE_STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(STORAGE_KEY_LOCAL, JSON.stringify(state));
     return true;
   } catch (e) {
     console.warn('Failed to save state:', e);
@@ -52,7 +46,7 @@ function saveState(state) {
  */
 function loadState() {
   try {
-    const raw = localStorage.getItem(ACTIVE_STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY_LOCAL);
     if (!raw) return getDefaultState();
     
     // safe parsing
@@ -72,7 +66,6 @@ function loadState() {
   }
 }
 
-// Export for Node.js / Jest
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     saveState,

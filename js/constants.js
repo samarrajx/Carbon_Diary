@@ -38,11 +38,11 @@ const EMISSION_FACTORS = {
     'Taxi/Rideshare':       { factor: 0.21,   unit: 'km' },
     'Motorcycle taxi':      { factor: 0.11,   unit: 'km' },
     'Motorbike':            { factor: 0.11,   unit: 'km' },
-    'Bus/Metro':            { factor: 0.04,   unit: 'km' },
+    'Bus / Metro':            { factor: 0.04,   unit: 'km' },
     'Train':                { factor: 0.035,  unit: 'km' },
     'Domestic flight':      { factor: 0.255,  unit: 'km' },
     'Long-haul flight':     { factor: 0.195,  unit: 'km' },
-    'Walking/Cycling':      { factor: 0,      unit: 'km' },
+    'Walking / Cycling':      { factor: 0,      unit: 'km' },
   },
   energy: {
     'Electricity used':          { factor: 0.40,  unit: 'kWh' },
@@ -113,7 +113,7 @@ const CHALLENGE_POOL = [
     desc: 'Log a walking or cycling trip of at least 5km.',
     points: 20,
     autoCheck: (todayEntries) =>
-      todayEntries.some(e => e.category === 'transport' && e.activityType === 'Walking/Cycling' && e.quantity >= 5),
+      todayEntries.some(e => e.category === 'transport' && e.activityType === 'Walking / Cycling' && e.quantity >= 5),
     manual: false,
   },
   {
@@ -289,7 +289,7 @@ const ACHIEVEMENTS = [
     desc: 'Log 50km of walking/cycling total',
     check: (state) => {
       if (!state.activities) return false;
-      return state.activities.filter(a => a.activityType === 'Walking/Cycling').reduce((sum, a) => sum + a.quantity, 0) >= 50;
+      return state.activities.filter(a => a.activityType === 'Walking / Cycling').reduce((sum, a) => sum + a.quantity, 0) >= 50;
     },
   },
   {
@@ -327,16 +327,15 @@ const COMPARISONS = [
   { label: '🇺🇸 US avg',     val: 14.9, color: '#e63946' },
 ];
 
-// Export for Node.js / Jest
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    APP_VERSION,
-    STORAGE_KEY,
-    DAILY_TARGET,
     EMISSION_FACTORS,
     CHALLENGE_POOL,
     ACHIEVEMENTS,
     LEVELS,
-    COMPARISONS
+    DAILY_TARGET,
+    COMPARISONS,
+    STORAGE_KEY,
+    APP_VERSION
   };
 }

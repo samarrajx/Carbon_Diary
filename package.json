@@ -1,17 +1,18 @@
 {
   "name": "carbon-diary",
   "version": "1.0.0",
-  "description": "Daily carbon footprint journal",
+  "description": "Carbon Diary — Daily carbon footprint journal",
   "scripts": {
-    "test": "jest --coverage",
-    "test:watch": "jest --watch"
+    "test": "jest --coverage --verbose",
+    "test:watch": "jest --watch",
+    "test:ci": "jest --coverage --ci"
   },
   "devDependencies": {
-    "jest": "^29.0.0",
-    "@jest/globals": "^29.0.0"
+    "jest": "^29.7.0"
   },
   "jest": {
     "testEnvironment": "node",
-    "coverageReporters": ["text", "lcov"]
+    "testMatch": ["**/tests/**/*.test.js"],
+    "collectCoverageFrom": ["js/**/*.js"]
   }
 }

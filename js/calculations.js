@@ -33,7 +33,9 @@ function calcCO2(category, activityType, quantity) {
   if (!LOCAL_EMISSION_FACTORS) return 0;
   const factors = LOCAL_EMISSION_FACTORS[category];
   if (!factors || !factors[activityType]) return 0;
-  return Number((factors[activityType].factor * quantity).toFixed(2));
+  const num = Number(quantity);
+  if (isNaN(num) || num < 0) return 0;
+  return Number((factors[activityType].factor * num).toFixed(2));
 }
 
 /**
@@ -208,7 +210,8 @@ function generateCoachResponse(message, state) {
   return `Today so far: ${todayTotal.toFixed(1)}kg CO₂.\n\nTry asking me about your biggest category, streak, or Paris target!`;
 }
 
-// Export for Node.js / Jest
+// Export for Jest/Node.js testing environment
+// In browser, functions are already global — this block is ignored
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     calcCO2,

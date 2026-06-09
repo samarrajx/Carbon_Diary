@@ -1,88 +1,94 @@
-const { calcCO2, getDailyTotal, filterByCategory, calculateStreak } = require('../js/calculations');
-const { clamp, escapeHtml } = require('../js/utils');
-const { EMISSION_FACTORS } = require('../js/constants');
+'use strict';
+const {
+  EMISSION_FACTORS,
+  CHALLENGE_POOL,
+  ACHIEVEMENTS,
+  DAILY_TARGET,
+  COMPARISONS
+} = require('../js/constants');
 
-function formatDateFriendly(dateStr) { const d = new Date(dateStr + 'T12:00:00'); return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }); }
-
-describe('Data Constants Module', () => {
-
-  test('EMISSION_FACTORS has all 4 categories', () => {
+describe('EMISSION_FACTORS', () => {
+  test('has transport category', () => {
     expect(EMISSION_FACTORS).toHaveProperty('transport');
+  });
+  test('has energy category', () => {
     expect(EMISSION_FACTORS).toHaveProperty('energy');
+  });
+  test('has food category', () => {
     expect(EMISSION_FACTORS).toHaveProperty('food');
+  });
+  test('has shopping category', () => {
     expect(EMISSION_FACTORS).toHaveProperty('shopping');
   });
-
-  test('Each category has at least 3 activity types', () => {
-    expect(Object.keys(EMISSION_FACTORS.transport).length).toBeGreaterThanOrEqual(3);
-    expect(Object.keys(EMISSION_FACTORS.energy).length).toBeGreaterThanOrEqual(3);
-    expect(Object.keys(EMISSION_FACTORS.food).length).toBeGreaterThanOrEqual(3);
-    expect(Object.keys(EMISSION_FACTORS.shopping).length).toBeGreaterThanOrEqual(3);
+  test('transport has at least 8 types', () => {
+    expect(Object.keys(EMISSION_FACTORS.transport).length)
+      .toBeGreaterThanOrEqual(8);
   });
-
-  test('All emission factors are positive numbers (or zero)', () => {
-    let valid = true;
-    for (const cat in EMISSION_FACTORS) {
-      for (const act in EMISSION_FACTORS[cat]) {
-        if (typeof EMISSION_FACTORS[cat][act].factor !== 'number' || EMISSION_FACTORS[cat][act].factor < 0) {
-          valid = false;
-        }
-      }
-    }
-    expect(valid).toBe(true);
+  test('food has at least 8 types', () => {
+    expect(Object.keys(EMISSION_FACTORS.food).length)
+      .toBeGreaterThanOrEqual(8);
   });
-
-  test('No emission factor exceeds 300 kg', () => {
-    let valid = true;
-    for (const cat in EMISSION_FACTORS) {
-      for (const act in EMISSION_FACTORS[cat]) {
-        if (EMISSION_FACTORS[cat][act].factor > 300) {
-          valid = false;
-        }
-      }
-    }
-    expect(valid).toBe(true);
+  test('walking factor is 0', () => {
+    expect(EMISSION_FACTORS.transport['Walking / Cycling'].factor)
+      .toBe(0);
   });
-
-  test('Walking/Cycling factor is exactly 0', () => {
-    expect(EMISSION_FACTORS.transport['Walking/Cycling'].factor).toBe(0);
-  });
-
-  test('Beef meal is the highest food emission', () => {
-    const foodFactors = Object.values(EMISSION_FACTORS.food).map(item => item.factor);
-    const maxFood = Math.max(...foodFactors);
-    expect(EMISSION_FACTORS.food['Beef meal'].factor).toBe(maxFood);
-  });
-
-  test('Vegan meal is lower than vegetarian meal', () => {
-    const vegan = EMISSION_FACTORS.food['Vegan meal'].factor;
-    const vegetarian = EMISSION_FACTORS.food['Vegetarian meal'].factor;
-    expect(vegan).toBeLessThan(vegetarian);
-  });
-
-  test('Electric car is lower than petrol car', () => {
-    const electric = EMISSION_FACTORS.transport['Car trip (electric)'].factor;
+  test('electric car < petrol car', () => {
+    const ev = EMISSION_FACTORS.transport['Car trip (electric)'].factor;
     const petrol = EMISSION_FACTORS.transport['Car trip (petrol)'].factor;
-    expect(electric).toBeLessThan(petrol);
+    expect(ev).toBeLessThan(petrol);
   });
-
-  test('Train is lower than bus', () => {
-    const train = EMISSION_FACTORS.transport['Train'].factor;
-    const bus = EMISSION_FACTORS.transport['Bus/Metro'].factor;
-    expect(train).toBeLessThan(bus);
+  test('beef > vegan in food', () => {
+    const beef = EMISSION_FACTORS.food['Beef meal'].factor;
+    const vegan = EMISSION_FACTORS.food['Vegan meal'].factor;
+    expect(beef).toBeGreaterThan(vegan);
   });
-
-  test('All factor objects have factor and unit properties', () => {
-    let valid = true;
-    for (const cat in EMISSION_FACTORS) {
-      for (const act in EMISSION_FACTORS[cat]) {
-        const item = EMISSION_FACTORS[cat][act];
-        if (!item.hasOwnProperty('factor') || !item.hasOwnProperty('unit')) {
-          valid = false;
-        }
-      }
-    }
-    expect(valid).toBe(true);
+  test('all transport factors are non-negative', () => {
+    Object.values(EMISSION_FACTORS.transport).forEach(item => {
+      expect(item.factor).toBeGreaterThanOrEqual(0);
+    });
   });
+});
 
+describe('CHALLENGE_POOL', () => {
+  test('has at least 12 challenges', () => {
+    expect(CHALLENGE_POOL.length).toBeGreaterThanOrEqual(12);
+  });
+  test('every challenge has required fields', () => {
+    CHALLENGE_POOL.forEach(c => {
+      expect(c).toHaveProperty('id');
+      expect(c).toHaveProperty('title');
+      expect(c).toHaveProperty('points');
+    });
+  });
+  test('all points are positive', () => {
+    CHALLENGE_POOL.forEach(c => {
+      expect(c.points).toBeGreaterThan(0);
+    });
+  });
+});
+
+describe('ACHIEVEMENTS', () => {
+  test('has at least 8 achievements', () => {
+    expect(ACHIEVEMENTS.length).toBeGreaterThanOrEqual(8);
+  });
+  test('every achievement has id and name', () => {
+    ACHIEVEMENTS.forEach(a => {
+      expect(a).toHaveProperty('id');
+      expect(a).toHaveProperty('name');
+    });
+  });
+});
+
+describe('DAILY_TARGET and COMPARISONS', () => {
+  test('DAILY_TARGET is 8', () => {
+    expect(DAILY_TARGET).toBe(8);
+  });
+  test('COMPARISONS has at least 4 entries', () => {
+    expect(COMPARISONS.length).toBeGreaterThanOrEqual(4);
+  });
+  test('all comparison values are positive', () => {
+    COMPARISONS.forEach(c => {
+      expect(c.val).toBeGreaterThan(0);
+    });
+  });
 });

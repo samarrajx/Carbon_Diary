@@ -86,7 +86,6 @@ function safeJsonParse(str, fallback) {
   }
 }
 
-// Export for Node.js / Jest
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     clamp,
