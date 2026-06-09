@@ -1,0 +1,17 @@
+{
+  "name": "carbon-diary",
+  "version": "1.0.0",
+  "description": "Daily carbon footprint journal",
+  "scripts": {
+    "test": "jest --coverage",
+    "test:watch": "jest --watch"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0",
+    "@jest/globals": "^29.0.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "coverageReporters": ["text", "lcov"]
+  }
+}

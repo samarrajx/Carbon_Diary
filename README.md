@@ -53,7 +53,7 @@ The key insight: **awareness drives behaviour change**. Research shows users who
 | **Code Quality** | Single `EMISSION_FACTORS` constant, `CHALLENGE_POOL`, `ACHIEVEMENTS` arrays, named functions for every feature, JSDoc comments | Clean architecture: `calcCO2()`, `handleLogSubmit()`, `generateCoachResponse()`, etc. — 60+ named functions |
 | **Security** | Zero external API calls, zero CDN scripts, zero data transmission, `escapeHtml()` on all dynamic content | All data stays in `localStorage`. No XSS vectors. `clamp()` on all numeric inputs |
 | **Efficiency** | CSS-only animations, `requestAnimationFrame` for bar chart animation, instant localStorage saves, no framework overhead | Opens instantly in any browser, works 100% offline |
-| **Testing** | Input validation on all fields, edge case handling (no data states, streak gap logic, zero totals), date-seeded random for reproducible challenges | `clamp()` on all inputs, null checks on every DOM query, graceful empty states |
+| **Testing** | 50 Jest unit tests across calculations, validation, and data integrity | npm test — all passing, covers edge cases including NaN, null, negative inputs |
 | **Accessibility** | WCAG 2.1 AA, semantic HTML5 (`aside`, `nav`, `main`, `section`, `article`), skip link, `role="tab"`, `aria-selected`, `role="log"` + `aria-live` on chat, `role="progressbar"` on XP bars, color+icon always paired | Calendar cells have `aria-label="date: X kg CO₂"`, all buttons have `aria-label` |
 
 ---
@@ -86,6 +86,19 @@ All factors sourced from DEFRA 2023, EPA, and IPCC AR6 (2022):
 | Beef meal | 6.61 kg CO₂ | Our World in Data (Poore & Nemecek 2018) |
 | Vegan meal | 0.39 kg CO₂ | Springmann et al. 2018 |
 | **Daily target** | **8 kg CO₂/day** | ≈ 2.9t/year, near Paris Agreement 1.5°C pathway |
+
+---
+
+## 🧪 Testing
+
+```bash
+npm install
+npm test
+```
+
+- 50 unit tests across 3 test files
+- Tests cover: CO2 calculations, input validation, data integrity, streak logic, category filtering
+- Run with Jest 29 + coverage reporting
 
 ---
 

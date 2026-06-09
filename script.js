@@ -16,53 +16,7 @@
    CONSTANTS
 ================================================================ */
 
-/** All emission factors organized by category. Sources: DEFRA 2023, EPA, IPCC AR6 */
-const EMISSION_FACTORS = {
-  transport: {
-    'Car trip (petrol)':    { factor: 0.18,   unit: 'km' },
-    'Car trip (diesel)':    { factor: 0.17,   unit: 'km' },
-    'Car trip (electric)':  { factor: 0.05,   unit: 'km' },
-    'Motorbike':             { factor: 0.11,   unit: 'km' },
-    'Bus/Metro':             { factor: 0.04,   unit: 'km' },
-    'Train':                 { factor: 0.035,  unit: 'km' },
-    'Domestic flight':       { factor: 0.255,  unit: 'km' },
-    'Long-haul flight':      { factor: 0.195,  unit: 'km' },
-    'Taxi/Rideshare':        { factor: 0.21,   unit: 'km' },
-    'Motorcycle taxi':       { factor: 0.11,   unit: 'km' },
-    'Walking/Cycling':       { factor: 0,      unit: 'km' },
-  },
-  energy: {
-    'Electricity used':          { factor: 0.40,  unit: 'kWh' },
-    'Gas heating (hour)':        { factor: 0.20,  unit: 'hrs' },
-    'Air conditioning (hour)':   { factor: 0.25,  unit: 'hrs' },
-    'Video call (hour)':         { factor: 0.01,  unit: 'hrs' },
-    'Tumble dryer (cycle)':      { factor: 2.4,   unit: 'cycles' },
-    'Washing machine (cycle)':   { factor: 0.6,   unit: 'cycles' },
-    'Dishwasher (cycle)':        { factor: 0.7,   unit: 'cycles' },
-    'Long hot shower (per shower)': { factor: 0.5, unit: 'showers' },
-  },
-  food: {
-    'Beef meal':          { factor: 6.61,  unit: 'servings' },
-    'Lamb meal':          { factor: 5.84,  unit: 'servings' },
-    'Pork meal':          { factor: 2.15,  unit: 'servings' },
-    'Chicken meal':       { factor: 1.26,  unit: 'servings' },
-    'Fish meal':          { factor: 1.34,  unit: 'servings' },
-    'Rice meal':          { factor: 1.2,   unit: 'servings' },
-    'Vegetarian meal':    { factor: 0.63,  unit: 'servings' },
-    'Vegan meal':         { factor: 0.39,  unit: 'servings' },
-    'Coffee (cup)':       { factor: 0.28,  unit: 'cups' },
-    'Dairy milk (glass)': { factor: 0.62,  unit: 'glasses' },
-    'Plant milk (glass)': { factor: 0.14,  unit: 'glasses' },
-  },
-  shopping: {
-    'New clothing item':        { factor: 8.0,   unit: 'items' },
-    'New electronics (small)':  { factor: 40.0,  unit: 'items' },
-    'New electronics (large)':  { factor: 200.0, unit: 'items' },
-    'Online delivery package':  { factor: 0.5,   unit: 'packages' },
-    'New book/magazine':        { factor: 1.0,   unit: 'items' },
-    'Streaming hour':           { factor: 0.036, unit: 'hours' },
-  },
-};
+// EMISSION_FACTORS are now imported globally from js/calculations.js
 
 /** Category display config */
 const CAT_CONFIG = {
@@ -594,18 +548,7 @@ function generateId() {
    CALCULATION
 ================================================================ */
 
-/**
- * Calculates CO2 in kg for a given category, activity type, and quantity.
- * @param {string} category
- * @param {string} activityType
- * @param {number} qty
- * @returns {number}
- */
-function calcCO2(category, activityType, qty) {
-  const factors = EMISSION_FACTORS[category];
-  if (!factors || !factors[activityType]) return 0;
-  return factors[activityType].factor * qty;
-}
+// calcCO2 is now imported from js/calculations.js
 
 /* ================================================================
    UI — TODAY'S LOG PAGE
@@ -1925,17 +1868,7 @@ function showToast(message) {
    UTILITIES
 ================================================================ */
 
-/**
- * Clamps a number between min and max.
- * @param {number} v
- * @param {number} min
- * @param {number} max
- * @returns {number}
- */
-function clamp(v, min, max) {
-  if (isNaN(v)) return min;
-  return Math.min(max, Math.max(min, v));
-}
+// clamp is now imported from js/calculations.js
 
 /**
  * Escapes HTML characters to prevent XSS in dynamic content.
