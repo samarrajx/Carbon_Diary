@@ -1891,16 +1891,25 @@ function closeMobileSidebar() {
 let toastTimeout = null;
 
 /**
- * Shows a brief toast notification.
+ * Shows a brief toast notification and announces it to screen readers.
  * @param {string} message
  */
 function showToast(message) {
   const toast = document.getElementById('toast');
-  if (!toast) return;
-  toast.textContent = message;
-  toast.classList.add('show');
-  if (toastTimeout) clearTimeout(toastTimeout);
-  toastTimeout = setTimeout(() => toast.classList.remove('show'), 2800);
+  if (toast) {
+    toast.textContent = message;
+    toast.classList.add('show');
+    if (toastTimeout) clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => toast.classList.remove('show'), 2800);
+  }
+  
+  // Dedicated screen reader announcement
+  const announcer = document.getElementById('a11y-announcer');
+  if (announcer) {
+    // Briefly clear and set to force voiceover re-announcement
+    announcer.textContent = '';
+    setTimeout(() => { announcer.textContent = message; }, 50);
+  }
 }
 
 /* ================================================================
