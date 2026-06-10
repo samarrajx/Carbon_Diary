@@ -642,6 +642,21 @@ function getCalendarDates() {
 }
 
 /**
+ * Attaches tooltip and focus event listeners to all 
+ * non-empty calendar day cells.
+ * @param {HTMLElement} grid - The calendar grid container
+ */
+function attachCalendarCellListeners(grid) {
+  grid.querySelectorAll('.cal-day:not(.empty-day)').forEach(cell => {
+    cell.addEventListener('mouseenter', showCalTooltip);
+    cell.addEventListener('mouseleave', hideCalTooltip);
+    cell.addEventListener('mousemove', moveCalTooltip);
+    cell.addEventListener('focus', showCalTooltip);
+    cell.addEventListener('blur', hideCalTooltip);
+  });
+}
+
+/**
  * Renders the 30-day calendar heatmap.
  */
 function renderCalendarHeatmap() {
@@ -670,13 +685,7 @@ function renderCalendarHeatmap() {
 
   grid.innerHTML = html;
   
-  grid.querySelectorAll('.cal-day:not(.empty-day)').forEach(cell => {
-    cell.addEventListener('mouseenter', showCalTooltip);
-    cell.addEventListener('mouseleave', hideCalTooltip);
-    cell.addEventListener('mousemove', moveCalTooltip);
-    cell.addEventListener('focus', showCalTooltip);
-    cell.addEventListener('blur', hideCalTooltip);
-  });
+  attachCalendarCellListeners(grid);
 }
 
 /**
@@ -908,6 +917,40 @@ function buildTargetLine(targetKg, maxVal, w, chartH) {
 }
 
 /**
+ * Builds the SVG filled area path under the weekly polyline.
+ * @param {number[]} vals - 7 daily CO2 values
+ * @param {Function} toX - Function mapping index to X coord
+ * @param {Function} toY - Function mapping value to Y coord
+ * @param {number} chartBottom - Y coordinate of chart bottom
+ * @returns {string} SVG path element HTML string
+ */
+function buildChartAreaPath(vals, toX, toY, chartBottom) {
+  const start = `M ${toX(0).toFixed(1)},${toY(vals[0]).toFixed(1)}`;
+  const lines = vals.slice(1)
+    .map((v, i) => `L ${toX(i+1).toFixed(1)},${toY(v).toFixed(1)}`)
+    .join(' ');
+  const close = `L ${toX(6).toFixed(1)},${chartBottom.toFixed(1)} ` +
+    `L ${toX(0).toFixed(1)},${chartBottom.toFixed(1)} Z`;
+  return `<path class="chart-area" d="${start} ${lines} ${close}"/>`;
+}
+
+/**
+ * Builds SVG axis lines for the weekly chart.
+ * @param {number} padL - Left padding px
+ * @param {number} padT - Top padding px  
+ * @param {number} padR - Right padding px
+ * @param {number} chartBottom - Y coord of chart bottom
+ * @param {number} w - Total chart width
+ * @returns {string} SVG line elements HTML string
+ */
+function buildChartAxes(padL, padT, padR, chartBottom, w) {
+  return `<line class="chart-axis-line" ` +
+    `x1="${padL}" y1="${padT}" x2="${padL}" y2="${chartBottom}"/>` +
+    `<line class="chart-axis-line" ` +
+    `x1="${padL}" y1="${chartBottom}" x2="${w - padR}" y2="${chartBottom}"/>`;
+}
+
+/**
  * Renders the SVG weekly trend line chart for the last 7 days.
  */
 function renderWeeklyChart() {
@@ -932,16 +975,11 @@ function renderWeeklyChart() {
 
   const toX = (i) => CHART_PAD_LEFT + (i / 6) * (W - CHART_PAD_LEFT - CHART_PAD_RIGHT);
   const toY = (v) => calcChartY(v, maxVal, chartH, CHART_POINT_PADDING);
-  const areaPath = `M ${toX(0).toFixed(1)},${toY(vals[0]).toFixed(1)} ` +
-    vals.slice(1).map((v, i) => `L ${toX(i + 1).toFixed(1)},${toY(v).toFixed(1)}`).join(' ') +
-    ` L ${toX(6).toFixed(1)},${(CHART_PAD_TOP + chartH).toFixed(1)} L ${toX(0).toFixed(1)},${(CHART_PAD_TOP + chartH).toFixed(1)} Z`;
+  
+  const areaPath = buildChartAreaPath(vals, toX, toY, CHART_PAD_TOP + chartH);
+  const axes = buildChartAxes(CHART_PAD_LEFT, CHART_PAD_TOP, CHART_PAD_RIGHT, CHART_PAD_TOP + chartH, W);
 
-  const axes = `
-    <line class="chart-axis-line" x1="${CHART_PAD_LEFT}" y1="${CHART_PAD_TOP}" x2="${CHART_PAD_LEFT}" y2="${CHART_PAD_TOP + chartH}"/>
-    <line class="chart-axis-line" x1="${CHART_PAD_LEFT}" y1="${CHART_PAD_TOP + chartH}" x2="${W - CHART_PAD_RIGHT}" y2="${CHART_PAD_TOP + chartH}"/>
-  `;
-
-  svg.innerHTML = gridLines + targetLine + axes + `<path class="chart-area" d="${areaPath}"/>` +
+  svg.innerHTML = gridLines + targetLine + axes + areaPath +
     `<polyline class="chart-polyline" points="${polyPoints}" fill="none"/>` + dots + axisLabels;
 }
 
