@@ -26,6 +26,8 @@ const STORAGE_KEY = "carbondiary_data";
  * @type {number}
  */
 const DAILY_TARGET = 8;
+/** Alias used in script.js — kg CO2 per day target */
+const DAILY_TARGET_KG = DAILY_TARGET;
 
 /**
  * All emission factors organized by category.
@@ -352,6 +354,7 @@ if (typeof module !== 'undefined' && module.exports) {
     ACHIEVEMENTS,
     LEVELS,
     DAILY_TARGET,
+    DAILY_TARGET_KG,
     COMPARISONS,
     STORAGE_KEY,
     APP_VERSION
