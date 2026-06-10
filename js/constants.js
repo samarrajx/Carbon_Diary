@@ -329,6 +329,22 @@ const COMPARISONS = [
   { label: '🇺🇸 US avg',     val: 14.9, color: '#e63946' },
 ];
 
+/** Chart dimensions for weekly SVG chart */
+const CHART_WIDTH = 520;
+const CHART_HEIGHT = 180;
+const CHART_PAD_LEFT = 40;
+const CHART_PAD_RIGHT = 20;
+const CHART_PAD_TOP = 20;
+const CHART_PAD_BOTTOM = 36;
+const CHART_POINT_PADDING = 20;
+
+/** Calendar and date constants */
+const CALENDAR_DAYS = 30;
+const DAYS_IN_YEAR = 365;
+
+/** Global comparison scale maximum (US average in tonnes) */
+const MAX_GLOBAL_TONS = 16;
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     EMISSION_FACTORS,

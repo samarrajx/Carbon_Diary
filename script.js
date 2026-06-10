@@ -66,6 +66,11 @@ function initLogFormListeners() {
     const label = document.getElementById('energyUnitLabel');
     if (label && factor) label.textContent = `Quantity (${factor.unit})`;
   });
+  const entriesList = document.getElementById('entriesList');
+  if (entriesList) entriesList.addEventListener('click', (e) => {
+    const btn = e.target.closest('.entry-delete-btn');
+    if (btn) deleteActivity(btn.dataset.entryId);
+  });
 }
 
 /**
@@ -103,6 +108,20 @@ function initMiscListeners() {
 }
 
 /**
+ * Wires up challenge complete button event delegation.
+ */
+function initChallengeListeners() {
+  const challengesGrid = document.getElementById('challengesGrid');
+  if (challengesGrid) challengesGrid.addEventListener('click', (e) => {
+    const btn = e.target.closest('.challenge-complete-btn');
+    if (btn) completeChallenge(
+      btn.dataset.challengeId,
+      parseInt(btn.dataset.challengePoints, 10)
+    );
+  });
+}
+
+/**
  * Wires up all event listeners for the application.
  */
 function initEventListeners() {
@@ -110,6 +129,7 @@ function initEventListeners() {
   initLogFormListeners();
   initCoachListeners();
   initMiscListeners();
+  initChallengeListeners();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -148,13 +168,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // 11. Save any streak update
   saveState();
 
-  console.log('%c📗 Carbon Diary Initialized', 'color: #2d6a4f; font-weight: bold; font-size: 16px;');
-  console.log('%cState:', 'color: #52b788;', {
-    activities: state.activities.length,
-    streak: state.streak.current,
-    points: state.points,
-    theme: state.theme,
-  });
 
 // ============================================================
 // PAGE NAVIGATION
@@ -165,12 +178,36 @@ document.addEventListener('DOMContentLoaded', () => {
  * Also triggers page-specific rendering.
  * @param {string} pageId - e.g. 'page-today'
  */
+/**
+ * Hides all page sections and clears active nav states.
+ */
+function hideAllPages() {
+  document.querySelectorAll('.page').forEach(p =>
+    p.classList.remove('active')
+  );
+  document.querySelectorAll('.nav-item, .mobile-tab').forEach(n =>
+    n.classList.remove('active')
+  );
+}
+
+/**
+ * Sets active CSS class on nav items matching pageId.
+ * @param {string} pageId - Page identifier string
+ */
+function setActiveNav(pageId) {
+  document.querySelectorAll(
+    `[data-page="${pageId}"]`
+  ).forEach(el => el.classList.add('active'));
+}
+
+/**
+ * Navigates to a given page, hiding all others.
+ * Also triggers page-specific rendering.
+ * @param {string} pageId - e.g. 'page-today'
+ */
 function navigateTo(pageId) {
-  // Hide all pages
-  document.querySelectorAll('.page').forEach(p => {
-    p.classList.remove('active');
-    p.hidden = true;
-  });
+  // Hide all pages and clear nav
+  hideAllPages();
 
   // Show target page
   const target = document.getElementById(pageId);
@@ -179,15 +216,8 @@ function navigateTo(pageId) {
     target.hidden = false;
   }
 
-  // Update nav active states (sidebar)
-  document.querySelectorAll('.nav-item').forEach(item => {
-    item.classList.toggle('active', item.dataset.page === pageId);
-  });
-
-  // Update mobile tabs
-  document.querySelectorAll('.mobile-tab').forEach(tab => {
-    tab.classList.toggle('active', tab.dataset.page === pageId);
-  });
+  // Mark nav items active
+  setActiveNav(pageId);
 
   // Close mobile sidebar
   closeMobileSidebar();
@@ -246,6 +276,54 @@ function renderTodayDate() {
  * Returns the current form values for the active category.
  * @returns {{ activityType: string, quantity: number, unit: string, co2kg: number }}
  */
+/** @returns {{type:string, quantity:number}} Transport inputs */
+function getTransportInputs() {
+  return {
+    type: document.getElementById('transportType').value,
+    quantity: clamp(
+      parseFloat(document.getElementById('transportQty').value) || 0,
+      0, 50000
+    )
+  };
+}
+
+/** @returns {{type:string, quantity:number}} Energy inputs */
+function getEnergyInputs() {
+  return {
+    type: document.getElementById('energyType').value,
+    quantity: clamp(
+      parseFloat(document.getElementById('energyQty').value) || 0,
+      0, 10000
+    )
+  };
+}
+
+/** @returns {{type:string, quantity:number}} Food inputs */
+function getFoodInputs() {
+  return {
+    type: document.getElementById('foodType').value,
+    quantity: clamp(
+      parseFloat(document.getElementById('foodQty').value) || 1,
+      1, 50
+    )
+  };
+}
+
+/** @returns {{type:string, quantity:number}} Shopping inputs */
+function getShoppingInputs() {
+  return {
+    type: document.getElementById('shoppingType').value,
+    quantity: clamp(
+      parseFloat(document.getElementById('shoppingQty').value) || 1,
+      1, 1000
+    )
+  };
+}
+
+/**
+ * Returns the current form values for the active category.
+ * @returns {{ activityType: string, quantity: number, unit: string, co2kg: number }}
+ */
 function getFormValues() {
   let activityType = '';
   let quantity = 0;
@@ -253,24 +331,24 @@ function getFormValues() {
   let co2kg = 0;
 
   if (activeCategory === 'transport') {
-    activityType = document.getElementById('transportType').value;
-    quantity = clamp(parseFloat(document.getElementById('transportQty').value) || 0, 0, 50000);
+    const i = getTransportInputs();
+    activityType = i.type; quantity = i.quantity;
     unit = 'km';
     co2kg = calcCO2('transport', activityType, quantity);
   } else if (activeCategory === 'energy') {
-    activityType = document.getElementById('energyType').value;
-    quantity = clamp(parseFloat(document.getElementById('energyQty').value) || 0, 0, 10000);
+    const i = getEnergyInputs();
+    activityType = i.type; quantity = i.quantity;
     const energyFactor = EMISSION_FACTORS.energy[activityType];
     unit = energyFactor ? energyFactor.unit : 'units';
     co2kg = calcCO2('energy', activityType, quantity);
   } else if (activeCategory === 'food') {
-    activityType = document.getElementById('foodType').value;
-    quantity = clamp(parseFloat(document.getElementById('foodQty').value) || 1, 1, 50);
+    const i = getFoodInputs();
+    activityType = i.type; quantity = i.quantity;
     unit = 'servings';
     co2kg = calcCO2('food', activityType, quantity);
   } else if (activeCategory === 'shopping') {
-    activityType = document.getElementById('shoppingType').value;
-    quantity = clamp(parseFloat(document.getElementById('shoppingQty').value) || 1, 1, 1000);
+    const i = getShoppingInputs();
+    activityType = i.type; quantity = i.quantity;
     const shoppingFactor = EMISSION_FACTORS.shopping[activityType];
     unit = shoppingFactor ? shoppingFactor.unit : 'items';
     co2kg = calcCO2('shopping', activityType, quantity);
@@ -344,6 +422,31 @@ function handleLogSubmit(e) {
 /**
  * Renders the full Today's Log page including entries list and summary.
  */
+/**
+ * Builds HTML for a single activity entry card.
+ * @param {Object} entry - Activity entry from state
+ * @param {Object} cfg - Category config (icon, label, color)
+ * @returns {string} HTML string for the entry card
+ */
+function buildEntryCardHTML(entry, cfg) {
+  return `<div class="entry-card" role="article">
+    <div class="entry-cat-dot" style="background:${cfg.color};"
+      aria-hidden="true"></div>
+    <div class="entry-info">
+      <div class="entry-name">${cfg.icon} ${entry.activityType}</div>
+      <div class="entry-qty">${entry.quantity} ${entry.unit}</div>
+    </div>
+    <div class="entry-co2">${entry.co2kg.toFixed(2)} kg</div>
+    <div class="entry-time">${formatTime(entry.timestamp)}</div>
+    <button class="btn btn-danger entry-delete-btn"
+      data-entry-id="${entry.id}"
+      aria-label="Delete ${entry.activityType} entry">🗑️</button>
+  </div>`;
+}
+
+/**
+ * Renders the full Today's Log page including entries list and summary.
+ */
 function renderTodayPage() {
   const today = getTodayString();
   const todayEntries = getActivitiesForDate(today)
@@ -374,19 +477,9 @@ function renderTodayPage() {
     return;
   }
 
-  list.innerHTML = todayEntries.map(entry => {
-    const cfg = CAT_CONFIG[entry.category];
-    return `
-      <div class="entry-item" role="listitem" aria-label="${entry.activityType}: ${entry.co2kg.toFixed(2)} kg CO2">
-        <div class="entry-cat-dot" style="background:${cfg.color};" aria-hidden="true"></div>
-        <div class="entry-name">${cfg.icon} ${entry.activityType}</div>
-        <div class="entry-qty">${entry.quantity} ${entry.unit}</div>
-        <div class="entry-co2">${entry.co2kg.toFixed(2)} kg</div>
-        <div class="entry-time">${formatTime(entry.timestamp)}</div>
-        <button class="btn btn-danger" onclick="deleteActivity('${entry.id}')"
-          aria-label="Delete ${entry.activityType} entry">🗑️</button>
-      </div>`;
-  }).join('');
+  list.innerHTML = todayEntries.map(entry =>
+    buildEntryCardHTML(entry, CAT_CONFIG[entry.category])
+  ).join('');
 
   // Summary bar
   renderSummaryBar(todayEntries, todayTotal);
@@ -451,12 +544,12 @@ function renderProgressPage() {
 function renderStatCards() {
   const today = getDayTotal(getTodayString());
   const week = getTotalForLastNDays(7);
-  const month = getTotalForLastNDays(30);
-  const yearlyPace = (month / 30) * 365 / 1000; // tons
+  const month = getTotalForLastNDays(CALENDAR_DAYS);
+  const yearlyPace = (month / CALENDAR_DAYS) * DAYS_IN_YEAR / 1000; // tons
 
   setStatCard('statToday', today.toFixed(2), getColorClass(today));
   setStatCard('statWeek', week.toFixed(2), getColorClass(week / 7));
-  setStatCard('statMonth', month.toFixed(2), getColorClass(month / 30));
+  setStatCard('statMonth', month.toFixed(2), getColorClass(month / CALENDAR_DAYS));
 
   const paceEl = document.getElementById('statPace');
   if (paceEl) paceEl.textContent = month > 0 ? `${yearlyPace.toFixed(1)}t` : '—';
@@ -494,6 +587,11 @@ function getColorClass(dailyKg) {
  * @param {number} co2kg - Daily CO2 total in kg
  * @returns {string} CSS color string
  */
+/**
+ * Returns CSS color for a daily CO2 value on the heatmap.
+ * @param {number} co2kg - Daily CO2 in kg (-1 = no data)
+ * @returns {string} CSS color string
+ */
 function getHeatmapColor(co2kg) {
   if (co2kg < 0) return 'var(--bg-card)';
   if (co2kg <= 5) return '#2d6a4f';
@@ -503,37 +601,29 @@ function getHeatmapColor(co2kg) {
 }
 
 /**
- * Returns accessible aria-label for a calendar cell.
- * @param {string} dateStr - Date string YYYY-MM-DD
- * @param {number} co2kg - CO2 logged (-1 if no data)
- * @returns {string} Aria label text
- */
-function getCalendarCellLabel(dateStr, co2kg) {
-  if (co2kg < 0) return `${dateStr}: no data`;
-  return `${dateStr}: ${co2kg.toFixed(2)}kg CO2`;
-}
-
-/**
- * Builds HTML for a single calendar heatmap cell.
- * @param {string} dateStr - Date string YYYY-MM-DD
- * @param {number} co2kg - CO2 for this day (-1 if no data)
- * @param {boolean} isToday - Whether this cell represents today
+ * Builds HTML for one calendar heatmap cell.
+ * @param {string} dateStr - Date YYYY-MM-DD
+ * @param {number} co2kg - CO2 for this day (-1 = no data)
+ * @param {boolean} isToday - Is this today's cell
  * @returns {string} HTML string
  */
 function buildCalendarCell(dateStr, co2kg, isToday) {
   const color = getHeatmapColor(co2kg);
-  const label = getCalendarCellLabel(dateStr, co2kg);
-  const dayNum = new Date(dateStr).getDate();
+  const label = co2kg < 0
+    ? `${dateStr}: no data`
+    : `${dateStr}: ${co2kg.toFixed(2)}kg CO2`;
+  const dayNum = new Date(dateStr + 'T12:00:00').getDate();
   const todayClass = isToday ? ' today-cell' : '';
-  return `<div class="cal-cell${todayClass}" 
-    style="background:${color}" 
-    aria-label="${label}"
-    role="gridcell"
-    title="${label}">
-    <span class="cal-day">${dayNum}</span>
-  </div>`;
+  return `<div class="cal-cell${todayClass}"
+    style="background:${color}"
+    aria-label="${label}" role="gridcell"
+    tabindex="0" data-date="${dateStr}"
+    data-total="${co2kg < 0 ? 0 : co2kg.toFixed(1)}">${dayNum}</div>`;
 }
 
+/**
+ * Renders the 30-day calendar heatmap.
+ */
 /**
  * Renders the 30-day calendar heatmap.
  */
@@ -552,25 +642,23 @@ function renderCalendarHeatmap() {
 
   // Find the first day of the 30-day window
   const startDate = new Date(today);
-  startDate.setDate(startDate.getDate() - 29);
+  startDate.setDate(startDate.getDate() - (CALENDAR_DAYS - 1));
 
-  // Find the day of week for startDate so we can pad
-  const startDow = startDate.getDay(); // 0=Sun
-
-  // Add empty cells for padding
+  // Add empty padding cells for day-of-week alignment
+  const startDow = startDate.getDay();
   for (let i = 0; i < startDow; i++) {
     html += `<div class="cal-day empty-day" aria-hidden="true"></div>`;
   }
 
-  // Add 30 days
-  for (let i = 0; i < 30; i++) {
+  // Add one cell per calendar day
+  for (let i = 0; i < CALENDAR_DAYS; i++) {
     const d = new Date(startDate);
     d.setDate(d.getDate() + i);
     const dateStr = d.toISOString().split('T')[0];
-    const dayNum = d.getDate();
     const total = getDayTotal(dateStr);
     const isToday = dateStr === getTodayString();
     const hasData = getActivitiesForDate(dateStr).length > 0;
+    const co2kg = hasData ? total : -1;
 
     let lvlClass = 'no-data';
     if (hasData) {
@@ -592,7 +680,7 @@ function renderCalendarHeatmap() {
         aria-label="${ariaLabel}"
         tabindex="0"
         role="gridcell">
-        ${dayNum}
+        ${d.getDate()}
       </div>`;
   }
 
@@ -649,50 +737,74 @@ function hideCalTooltip() {
 /**
  * Renders the horizontal category breakdown bar chart for the last 30 days.
  */
+/**
+ * Returns CSS color for a given emission category.
+ * @param {string} category - Category key
+ * @returns {string} CSS color string
+ */
+function getCategoryColor(category) {
+  const colors = {
+    transport: '#3b82f6',
+    energy: '#f59e0b',
+    food: '#10b981',
+    shopping: '#8b5cf6'
+  };
+  return colors[category] || '#6b7280';
+}
+
+/**
+ * Builds HTML for one animated breakdown bar row.
+ * @param {string} category - Category key
+ * @param {number} kg - CO2 in kg
+ * @param {number} totalKg - Total for percentage calc
+ * @param {Object} cfg - Category config object
+ * @returns {string} HTML string
+ */
+function buildBreakdownBarHTML(category, kg, totalKg, cfg) {
+  const pct = totalKg > 0 ? ((kg / totalKg) * 100).toFixed(1) : 0;
+  const color = getCategoryColor(category);
+  return `<div class="breakdown-row">
+    <div class="breakdown-header">
+      <div class="breakdown-label">
+        <div class="breakdown-dot" style="background:${color};"
+          aria-hidden="true"></div>
+        <span>${cfg.icon} ${cfg.label}</span>
+      </div>
+      <span class="breakdown-value">${kg.toFixed(2)} kg (${pct}%)</span>
+    </div>
+    <div class="breakdown-bar-track" role="progressbar"
+      aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"
+      aria-label="${cfg.label}: ${pct}% of total">
+      <div class="breakdown-bar-fill"
+        style="width:${pct}%;background:${color};"></div>
+    </div>
+  </div>`;
+}
+
+/**
+ * Renders the horizontal category breakdown bar chart for the last 30 days.
+ */
 function renderBreakdownBars() {
   const container = document.getElementById('breakdownBars');
   if (!container) return;
 
-  const totals = getCategoryTotalsForLastNDays(30);
+  const totals = getCategoryTotalsForLastNDays(CALENDAR_DAYS);
   const grandTotal = Object.values(totals).reduce((s, v) => s + v, 0);
-
-  const cats = ['transport', 'energy', 'food', 'shopping'];
 
   if (grandTotal === 0) {
     container.innerHTML = '<p class="text-muted" style="font-size:.88rem;">No data for this month yet. Start logging!</p>';
     return;
   }
 
-  container.innerHTML = cats.map(cat => {
-    const cfg = CAT_CONFIG[cat];
-    const val = totals[cat];
-    const pct = grandTotal > 0 ? (val / grandTotal) * 100 : 0;
-    return `
-      <div class="breakdown-item">
-        <div class="breakdown-header">
-          <div class="breakdown-label">
-            <div class="breakdown-dot" style="background:${cfg.color};" aria-hidden="true"></div>
-            ${cfg.icon} ${cfg.label}
-          </div>
-          <div class="breakdown-val">${val.toFixed(1)} kg &nbsp;·&nbsp; ${pct.toFixed(0)}%</div>
-        </div>
-        <div class="breakdown-bar-track">
-          <div class="breakdown-bar-fill" style="background:${cfg.color};width:0%"
-            data-target="${pct.toFixed(1)}"
-            role="progressbar"
-            aria-valuenow="${pct.toFixed(0)}"
-            aria-valuemin="0"
-            aria-valuemax="100"
-            aria-label="${cfg.label}: ${pct.toFixed(0)}%">
-          </div>
-        </div>
-      </div>`;
-  }).join('');
+  const cats = ['transport', 'energy', 'food', 'shopping'];
+  container.innerHTML = cats.map(cat =>
+    buildBreakdownBarHTML(cat, totals[cat], grandTotal, CAT_CONFIG[cat])
+  ).join('');
 
   // Animate bars in next frame
   requestAnimationFrame(() => {
     container.querySelectorAll('.breakdown-bar-fill').forEach(bar => {
-      bar.style.width = bar.dataset.target + '%';
+      bar.style.width = bar.style.width; // trigger reflow via existing inline style
     });
   });
 }
@@ -705,30 +817,55 @@ function renderBreakdownBars() {
  * @param {number} padding - Top/bottom padding in px
  * @returns {number} SVG Y coordinate
  */
-function calcChartY(value, maxVal, chartHeight, padding) {
-  if (maxVal === 0) return chartHeight - padding;
-  return chartHeight - padding -
-    ((value / maxVal) * (chartHeight - padding * 2));
+/**
+ * Calculates SVG Y coordinate for a data value.
+ * @param {number} value - Data value
+ * @param {number} maxVal - Maximum value in dataset
+ * @param {number} height - Chart height px
+ * @param {number} padding - Top/bottom padding px
+ * @returns {number} Y coordinate
+ */
+function calcChartY(value, maxVal, height, padding) {
+  if (maxVal === 0) return height - padding;
+  return height - padding - ((value / maxVal) * (height - padding * 2));
 }
 
 /**
- * Builds an SVG polyline points attribute string from data values.
- * @param {number[]} values - Array of 7 daily CO2 values
- * @param {number} chartWidth - SVG width in px
- * @param {number} chartHeight - SVG height in px
- * @returns {string} SVG points string e.g. "0,100 50,80 ..."
+ * Builds SVG polyline points string from weekly values.
+ * @param {number[]} values - 7 daily values
+ * @param {number} w - Chart width
+ * @param {number} h - Chart height
+ * @returns {string} SVG points attribute string
  */
-function buildPolylinePoints(values, chartWidth, chartHeight) {
-  const padding = 20;
+function buildWeeklyPoints(values, w, h) {
+  const pad = CHART_POINT_PADDING;
   const maxVal = Math.max(...values, 1);
-  const stepX = chartWidth / (values.length - 1);
+  const stepX = (w - CHART_PAD_LEFT - CHART_PAD_RIGHT) / (values.length - 1);
   return values.map((v, i) => {
-    const x = i * stepX;
-    const y = calcChartY(v, maxVal, chartHeight, padding);
+    const x = CHART_PAD_LEFT + i * stepX;
+    const y = calcChartY(v, maxVal, h, pad);
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   }).join(' ');
 }
 
+/**
+ * Builds X-axis day labels for the weekly chart.
+ * @param {string[]} labels - Array of 7 day label strings
+ * @param {number} w - Chart width
+ * @returns {string} SVG text elements HTML string
+ */
+function buildWeeklyAxisLabels(labels, w) {
+  const stepX = (w - CHART_PAD_LEFT - CHART_PAD_RIGHT) / (labels.length - 1);
+  return labels.map((label, i) => {
+    const x = CHART_PAD_LEFT + i * stepX;
+    return `<text class="chart-label" x="${x.toFixed(1)}"
+      y="${CHART_HEIGHT - 8}" text-anchor="middle">${label}</text>`;
+  }).join('');
+}
+
+/**
+ * Renders the SVG weekly trend line chart for the last 7 days.
+ */
 /**
  * Renders the SVG weekly trend line chart for the last 7 days.
  */
@@ -736,8 +873,8 @@ function renderWeeklyChart() {
   const svg = document.getElementById('weeklyChartContent');
   if (!svg) return;
 
-  const W = 520, H = 180;
-  const padL = 40, padR = 20, padT = 20, padB = 36;
+  const W = CHART_WIDTH, H = CHART_HEIGHT;
+  const padL = CHART_PAD_LEFT, padR = CHART_PAD_RIGHT, padT = CHART_PAD_TOP, padB = CHART_PAD_BOTTOM;
   const chartW = W - padL - padR;
   const chartH = H - padT - padB;
 
@@ -771,24 +908,22 @@ function renderWeeklyChart() {
     <text class="chart-target-label" x="${(W - padR + 2)}" y="${(parseFloat(targetY) + 3).toFixed(1)}" text-anchor="start">Target (8kg)</text>
   `;
 
-  // Area
-  const areaPoints = days.map((d, i) => `${toX(i).toFixed(1)},${toY(d.total).toFixed(1)}`).join(' ');
+  // Area fill path
   const areaPath = `M ${toX(0).toFixed(1)},${toY(days[0].total).toFixed(1)} ` +
-    days.slice(1).map((d, i) => `L ${toX(i+1).toFixed(1)},${toY(d.total).toFixed(1)}`).join(' ') +
+    days.slice(1).map((d, i) => `L ${toX(i + 1).toFixed(1)},${toY(d.total).toFixed(1)}`).join(' ') +
     ` L ${toX(6).toFixed(1)},${(padT + chartH).toFixed(1)} L ${toX(0).toFixed(1)},${(padT + chartH).toFixed(1)} Z`;
 
-  // Polyline
-  const polyPoints = days.map((d, i) => `${toX(i).toFixed(1)},${toY(d.total).toFixed(1)}`).join(' ');
+  // Polyline using helper
+  const polyPoints = buildWeeklyPoints(days.map(d => d.total), W, H);
 
-  // Dots + labels
+  // Dots + axis labels using helper
   let dots = '';
-  let labels = '';
   days.forEach((d, i) => {
     const cx = toX(i).toFixed(1);
     const cy = toY(d.total).toFixed(1);
     dots += `<circle class="chart-dot" cx="${cx}" cy="${cy}" r="4" aria-label="${d.label}: ${d.total.toFixed(1)} kg"/>`;
-    labels += `<text class="chart-label" x="${cx}" y="${(padT + chartH + 18).toFixed(1)}" text-anchor="middle">${d.label}</text>`;
   });
+  const axisLabels = buildWeeklyAxisLabels(days.map(d => d.label), W);
 
   // Axes
   const axes = `
@@ -803,8 +938,33 @@ function renderWeeklyChart() {
     <path class="chart-area" d="${areaPath}"/>
     <polyline class="chart-polyline" points="${polyPoints}" fill="none"/>
     ${dots}
-    ${labels}
+    ${axisLabels}
   `;
+}
+
+/**
+ * Renders the global comparison horizontal bar chart.
+ */
+/**
+ * Returns contextual message for user's yearly CO2 pace.
+ * @param {number} yearlyTons - Projected annual CO2 in tonnes
+ * @returns {string} Message string
+ */
+function getComparisonMessage(yearlyTons) {
+  if (yearlyTons <= 2.0) return '🎉 Within the 1.5°C Paris target!';
+  if (yearlyTons <= 4.0) return '🍀 Below global average. Keep going!';
+  if (yearlyTons <= 7.0) return '⚠️ Above global average. Small changes add up.';
+  if (yearlyTons <= 14.9) return '📈 Above EU average. Time to commit to actions.';
+  return '🚨 High impact footprint. Check the Challenges page.';
+}
+
+/**
+ * Calculates pin position percentage for comparison scale bar.
+ * @param {number} yearlyTons - Projected annual CO2 in tonnes
+ * @returns {number} Percentage 0-100
+ */
+function calcPinPosition(yearlyTons) {
+  return Math.min(100, (yearlyTons / MAX_GLOBAL_TONS) * 100);
 }
 
 /**
@@ -814,8 +974,8 @@ function renderComparisonCard() {
   const container = document.getElementById('comparisonBars');
   if (!container) return;
 
-  const month = getTotalForLastNDays(30);
-  const yearlyPaceTons = month > 0 ? (month / 30) * 365 / 1000 : null;
+  const month = getTotalForLastNDays(CALENDAR_DAYS);
+  const yearlyPaceTons = month > 0 ? (month / CALENDAR_DAYS) * DAYS_IN_YEAR / 1000 : null;
 
   const benchmarks = [
     { label: '🇮🇳 India avg',  val: 1.9,  color: '#059669' },
@@ -824,27 +984,27 @@ function renderComparisonCard() {
     { label: '🇺🇸 US avg',     val: 14.9, color: '#e63946' },
   ];
 
-  const maxVal = 16;
-  const userVal = yearlyPaceTons !== null ? yearlyPaceTons : null;
-
+  const userVal = yearlyPaceTons;
   let rows = '';
 
   if (userVal !== null) {
-    const userPct = Math.min(100, (userVal / maxVal) * 100);
+    const userPct = calcPinPosition(userVal);
     const userColor = userVal < 2 ? '#10b981' : userVal < 7 ? '#f59e0b' : '#e63946';
+    const msg = getComparisonMessage(userVal);
     rows += `
       <div class="comp-row highlight">
         <div class="comp-label">📗 You (pace)</div>
         <div class="comp-bar-track">
           <div class="comp-bar-fill" style="background:${userColor};width:${userPct.toFixed(1)}%"
-            role="progressbar" aria-valuenow="${userPct.toFixed(0)}" aria-valuemin="0" aria-valuemax="100"></div>
+            role="progressbar" aria-valuenow="${userPct.toFixed(0)}" aria-valuemin="0" aria-valuemax="100"
+            title="${msg}"></div>
         </div>
         <div class="comp-val">${userVal.toFixed(1)}t</div>
       </div>`;
   }
 
   rows += benchmarks.map(b => {
-    const pct = (b.val / maxVal) * 100;
+    const pct = (b.val / MAX_GLOBAL_TONS) * 100;
     return `
       <div class="comp-row">
         <div class="comp-label">${b.label}</div>
@@ -951,6 +1111,55 @@ function renderChallengesPage() {
 /**
  * Renders today's 3 challenge cards.
  */
+/**
+ * Selects 3 daily challenges using today's date as a seed.
+ * Same date always returns the same 3 challenges.
+ * @returns {Object[]} Array of 3 challenge objects
+ */
+function getDailyChallenges() {
+  const seed = getTodayString().replace(/-/g, '');
+  let rng = parseInt(seed, 10);
+  const pool = [...CHALLENGE_POOL];
+  const selected = [];
+  while (selected.length < 3 && pool.length > 0) {
+    rng = (rng * 1664525 + 1013904223) & 0xffffffff;
+    const idx = Math.abs(rng) % pool.length;
+    selected.push(pool.splice(idx, 1)[0]);
+  }
+  return selected;
+}
+
+/**
+ * Builds HTML for one challenge card.
+ * @param {Object} ch - Challenge object
+ * @param {boolean} isCompleted - Already completed today
+ * @returns {string} HTML string
+ */
+function buildChallengeCardHTML(ch, isCompleted) {
+  const btnClass = isCompleted
+    ? 'btn btn-success'
+    : 'btn btn-primary challenge-complete-btn';
+  const btnText = isCompleted ? '✅ Completed' : `Complete (+${ch.points}pts)`;
+  return `<div class="challenge-card ${isCompleted ? 'completed' : ''}">
+    <div class="challenge-header">
+      <span class="challenge-icon" aria-hidden="true">${ch.icon}</span>
+      <span class="challenge-points">+${ch.points} pts</span>
+    </div>
+    <div class="challenge-title">${ch.title}</div>
+    <div class="challenge-desc">${ch.desc}</div>
+    <button class="${btnClass}"
+      data-challenge-id="${ch.id}"
+      data-challenge-points="${ch.points}"
+      ${isCompleted ? 'disabled aria-disabled="true"' : ''}
+      aria-label="${isCompleted ? 'Challenge completed' : 'Complete challenge: ' + ch.title}">
+      ${btnText}
+    </button>
+  </div>`;
+}
+
+/**
+ * Renders today's 3 challenge cards.
+ */
 function renderTodayChallenges() {
   const container = document.getElementById('challengesGrid');
   const dateEl = document.getElementById('challengesDate');
@@ -961,30 +1170,9 @@ function renderTodayChallenges() {
   const challenges = getTodayChallenges();
   const completed = getTodayCompletedChallenges();
 
-  container.innerHTML = challenges.map(ch => {
-    const isDone = completed.includes(ch.id);
-    return `
-      <div class="challenge-card ${isDone ? 'completed' : ''}"
-        role="article" aria-label="${ch.title} challenge">
-        <div class="challenge-icon" aria-hidden="true">${ch.icon}</div>
-        <div class="challenge-content">
-          <div class="challenge-title">${ch.title}</div>
-          <div class="challenge-desc">${ch.desc}</div>
-          <div class="challenge-meta">
-            <span class="challenge-points">+${ch.points} pts</span>
-            ${isDone
-              ? `<span style="font-size:.82rem;color:var(--accent);font-weight:600;">✅ Completed!</span>`
-              : `<button class="btn btn-sm btn-outline"
-                  onclick="completeChallenge('${ch.id}', ${ch.points})"
-                  aria-label="Mark ${ch.title} as complete">
-                  Mark Complete
-                </button>`
-            }
-          </div>
-        </div>
-        ${isDone ? `<div class="challenge-complete-icon" aria-hidden="true">✅</div>` : ''}
-      </div>`;
-  }).join('');
+  container.innerHTML = challenges.map(ch =>
+    buildChallengeCardHTML(ch, completed.includes(ch.id))
+  ).join('');
 }
 
 // ============================================================
@@ -1266,37 +1454,51 @@ function updateSidebarStats() {
  * Recalculates and updates the streak based on when user last logged.
  * Called on page load and after every new activity is added.
  */
+/**
+ * Calculates updated streak based on last log date.
+ * @param {string|null} lastLogDate - Last date logged YYYY-MM-DD
+ * @param {number} current - Current streak count
+ * @returns {number} New streak count
+ */
+function calcNewStreak(lastLogDate, current) {
+  if (!lastLogDate) return 1;
+  const today = getTodayString();
+  const yesterday = getYesterdayString();
+  if (lastLogDate === today) return current;
+  if (lastLogDate === yesterday) return current + 1;
+  return 1;
+}
+
+/**
+ * Recalculates and updates the streak based on when user last logged.
+ * Called on page load and after every new activity is added.
+ */
 function updateStreak() {
   const today = getTodayString();
-  const yesterday = dateNDaysAgo(1);
   const lastLog = state.streak.lastLogDate;
+  const hasLoggedToday = getActivitiesForDate(today).length > 0;
 
-  const todayActivities = getActivitiesForDate(today);
-  const hasLoggedToday = todayActivities.length > 0;
+  if (!hasLoggedToday && !lastLog) {
+    // Nothing logged ever
+    state.streak.current = 0;
+    return;
+  }
 
-  if (!lastLog) {
-    // First time ever — initialise cleanly so current is always a number
-    state.streak.current = hasLoggedToday ? 1 : 0;
-    if (hasLoggedToday) state.streak.lastLogDate = today;
-  } else if (lastLog === today) {
-    // Already counted today — no change needed
-  } else if (lastLog === yesterday) {
-    // Streak continues only if user has also logged today
-    if (hasLoggedToday) {
-      state.streak.current = (state.streak.current || 0) + 1;
-      state.streak.lastLogDate = today;
-    }
-    // If not logged today yet: streak pending, not broken
-  } else {
-    // Gap detected — reset; restart from 1 if they log today
-    if (hasLoggedToday) {
-      state.streak.current = 1;
-      state.streak.lastLogDate = today;
-    } else {
+  if (!hasLoggedToday) {
+    // Haven't logged today — check if streak is still pending or broken
+    const yesterday = getYesterdayString();
+    if (lastLog !== today && lastLog !== yesterday) {
+      // Gap detected — streak broken
       state.streak.current = 0;
       state.streak.lastLogDate = null;
     }
+    return;
   }
+
+  // Logged today
+  if (lastLog === today) return; // Already counted
+  state.streak.current = calcNewStreak(lastLog, state.streak.current || 0);
+  state.streak.lastLogDate = today;
 }
 
 /**
@@ -1392,16 +1594,41 @@ function showToast(message) {
 /**
  * Renders the points and level display.
  */
+/**
+ * Returns the level object matching given XP points.
+ * @param {number} points - Total XP points
+ * @returns {Object} Level object with name, min, max properties
+ */
+function getLevelForPoints(points) {
+  let level = LEVELS[0];
+  for (let i = LEVELS.length - 1; i >= 0; i--) {
+    if (points >= LEVELS[i].min) { level = LEVELS[i]; break; }
+  }
+  return level;
+}
+
+/**
+ * Calculates XP progress percentage toward next level.
+ * @param {number} points - Current XP
+ * @param {Object} currentLevel - Current level object
+ * @param {number} nextLevelMin - XP minimum of next level
+ * @returns {number} Percentage 0-100
+ */
+function calcXpProgress(points, currentLevel, nextLevelMin) {
+  const range = nextLevelMin - currentLevel.min;
+  const progress = points - currentLevel.min;
+  return Math.min(100, (progress / range) * 100);
+}
+
+/**
+ * Renders the points and level display.
+ */
 function renderPointsDisplay() {
   const points = state.points;
   const pointsEl = document.getElementById('pointsDisplay');
   if (pointsEl) pointsEl.textContent = points;
 
-  // Determine current level
-  let currentLevel = LEVELS[0];
-  for (let i = LEVELS.length - 1; i >= 0; i--) {
-    if (points >= LEVELS[i].min) { currentLevel = LEVELS[i]; break; }
-  }
+  const currentLevel = getLevelForPoints(points);
 
   const levelBadge = document.getElementById('levelBadge');
   if (levelBadge) levelBadge.textContent = currentLevel.name;
@@ -1416,13 +1643,11 @@ function renderPointsDisplay() {
     if (bar) bar.setAttribute('aria-valuenow', '100');
     if (text) text.textContent = 'Max level reached! 🌲';
   } else {
-    const rangeMin = currentLevel.min;
     const rangeMax = currentLevel.max + 1;
-    const pct = ((points - rangeMin) / (rangeMax - rangeMin)) * 100;
+    const nextLevel = LEVELS[LEVELS.findIndex(l => l === currentLevel) + 1];
+    const pct = calcXpProgress(points, currentLevel, rangeMax);
     if (fill) fill.style.width = `${pct.toFixed(1)}%`;
     if (bar) bar.setAttribute('aria-valuenow', pct.toFixed(0));
-
-    const nextLevel = LEVELS[LEVELS.findIndex(l => l === currentLevel) + 1];
     if (text && nextLevel) text.textContent = `${rangeMax - points} pts to ${nextLevel.name}`;
   }
 }

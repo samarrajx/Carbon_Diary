@@ -36,6 +36,29 @@
   --c-energy:     #f59e0b;
   --c-food:       #10b981;
   --c-shopping:   #8b5cf6;
+
+  /* semantic color tokens */
+  --color-transport:    #3b82f6;
+  --color-energy:       #f59e0b;
+  --color-food:         #10b981;
+  --color-shopping:     #8b5cf6;
+  --color-danger:       #e63946;
+  --color-warning:      #f4a261;
+  --color-success:      #2d6a4f;
+  --color-success-light:#52b788;
+  --color-success-pale: #d8f3dc;
+
+  /* shadow tokens */
+  --shadow-card:    0 4px 24px rgba(0,0,0,0.08);
+  --shadow-hover:   0 8px 32px rgba(0,0,0,0.15);
+
+  /* motion tokens */
+  --transition-default: 0.3s ease;
+
+  /* border-radius tokens */
+  --border-radius-sm:   8px;
+  --border-radius-md:   12px;
+  --border-radius-lg:   16px;
 }
 
 /* ── Dark Theme ──────────────────────────────────────────────── */
@@ -283,7 +306,10 @@ img, svg { display: block; }
   padding: 36px 40px 60px;
   max-width: 900px;
 }
-.page.active { display: block; }
+.page.active {
+  display: block;
+  animation: pageIn .2s ease;
+}
 
 /* Page header */
 .page-header {
@@ -393,7 +419,7 @@ img, svg { display: block; }
 }
 .streak-banner.red {
   background: rgba(230,57,70,.08);
-  color: var(--danger);
+  color: var(--color-danger);
   border: 1px solid rgba(230,57,70,.2);
 }
 .streak-banner.neutral {
@@ -585,9 +611,9 @@ select.form-control option { background: var(--bg-card); color: var(--text); }
   font-weight: 700;
   font-family: var(--font-mono);
 }
-.summary-total.green  { color: var(--c-food); }
-.summary-total.yellow { color: var(--warning); }
-.summary-total.red    { color: var(--danger); }
+.summary-total.green  { color: var(--color-food); }
+.summary-total.yellow { color: var(--color-warning); }
+.summary-total.red    { color: var(--color-danger); }
 
 /* ================================================================
    PAGE 2 — MY PROGRESS
@@ -626,9 +652,9 @@ select.form-control option { background: var(--bg-card); color: var(--text); }
   line-height: 1;
   margin-bottom: 4px;
 }
-.stat-card-value.green  { color: var(--c-food); }
-.stat-card-value.yellow { color: var(--warning); }
-.stat-card-value.red    { color: var(--danger); }
+.stat-card-value.green  { color: var(--color-food); }
+.stat-card-value.yellow { color: var(--color-warning); }
+.stat-card-value.red    { color: var(--color-danger); }
 .stat-card-sub {
   font-size: .72rem;
   color: var(--text-muted);
@@ -667,10 +693,10 @@ select.form-control option { background: var(--bg-card); color: var(--text); }
 .cal-day.empty-day { background: transparent; }
 .cal-day.no-data   { background: #e5e7eb; color: #9ca3af; }
 [data-theme="dark"] .cal-day.no-data { background: #1e2d1e; color: #4a6a4a; }
-.cal-day.lvl-0  { background: #2d6a4f; color: #fff; }
-.cal-day.lvl-1  { background: #52b788; color: #fff; }
-.cal-day.lvl-2  { background: #f4a261; color: #1a1a2e; }
-.cal-day.lvl-3  { background: #e63946; color: #fff; }
+.cal-day.lvl-0  { background: var(--color-success);       color: #fff; }
+.cal-day.lvl-1  { background: var(--color-success-light); color: #fff; }
+.cal-day.lvl-2  { background: var(--color-warning);       color: #1a1a2e; }
+.cal-day.lvl-3  { background: var(--color-danger);        color: #fff; }
 .cal-day.today  { box-shadow: 0 0 0 2.5px var(--accent), 0 0 0 4px var(--bg-card); }
 
 /* Tooltip */
@@ -950,7 +976,7 @@ select.form-control option { background: var(--bg-card); color: var(--text); }
 
 .msg-bubble {
   padding: 12px 16px;
-  border-radius: 16px;
+  border-radius: var(--border-radius-lg);
   font-size: .9rem;
   line-height: 1.6;
   white-space: pre-wrap;
@@ -959,13 +985,13 @@ select.form-control option { background: var(--bg-card); color: var(--text); }
 .msg.ai .msg-bubble {
   background: var(--accent-pale);
   color: var(--text);
-  border-radius: 4px 16px 16px 16px;
+  border-radius: 4px var(--border-radius-lg) var(--border-radius-lg) var(--border-radius-lg);
   border: 1px solid rgba(45,106,79,.15);
 }
 .msg.user .msg-bubble {
   background: var(--accent);
   color: #fff;
-  border-radius: 16px 16px 4px 16px;
+  border-radius: var(--border-radius-lg) var(--border-radius-lg) 4px var(--border-radius-lg);
 }
 .msg-time {
   font-size: .7rem;
@@ -988,7 +1014,7 @@ select.form-control option { background: var(--bg-card); color: var(--text); }
   gap: 5px;
   padding: 12px 16px;
   background: var(--accent-pale);
-  border-radius: 4px 16px 16px 16px;
+  border-radius: 4px var(--border-radius-lg) var(--border-radius-lg) var(--border-radius-lg);
   border: 1px solid rgba(45,106,79,.15);
   align-self: flex-start;
 }
@@ -1195,10 +1221,6 @@ select.form-control option { background: var(--bg-card); color: var(--text); }
   border-radius: 3px;
 }
 
-/* Page enter animation */
-.page.active {
-  animation: pageIn .2s ease;
-}
 @keyframes pageIn {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
