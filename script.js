@@ -13,6 +13,7 @@
  */
 
 'use strict';
+/* global LEVELS */
 
 let state = getDefaultState();
 let activeCategory = 'transport';
@@ -1752,97 +1753,3 @@ function getCategoryTotalsForLastNDays(days) {
     .forEach(a => { if (result[a.category] !== undefined) result[a.category] += a.co2kg; });
   return result;
 }
-
-/**
- * Returns the total count of all activities ever logged.
- * @param {object} s - state object
- * @returns {number}
- */
-function getTotalActivities(s) {
-  return s.activities.length;
-}
-
-/**
- * Returns the count of unique days that have at least one logged activity.
- * @param {object} s
- * @returns {number}
- */
-function getUniqueDaysLogged(s) {
-  return new Set(s.activities.map(a => a.date)).size;
-}
-
-/**
- * Counts how many times a specific activityType was logged.
- * @param {object} s
- * @param {string} type
- * @returns {number}
- */
-function countActivityType(s, type) {
-  return s.activities.filter(a => a.activityType === type).reduce((sum, a) => sum + a.quantity, 0);
-}
-
-/**
- * Checks if the user ever had a day under a given threshold.
- * @param {object} s
- * @param {number} threshold
- * @returns {boolean}
- */
-function hasHadDayUnder(s, threshold) {
-  const days = {};
-  s.activities.forEach(a => {
-    if (!days[a.date]) days[a.date] = 0;
-    days[a.date] += a.co2kg;
-  });
-  return Object.values(days).some(v => v > 0 && v < threshold);
-}
-
-/**
- * Returns total walking/cycling km logged across all activities.
- * @param {object} s
- * @returns {number}
- */
-function totalCyclingKm(s) {
-  return s.activities
-    .filter(a => a.activityType === 'Walking/Cycling')
-    .reduce((sum, a) => sum + a.quantity, 0);
-}
-
-/**
- * Checks if user has had N consecutive flight-free logged days.
- * @param {object} s
- * @param {number} n
- * @returns {boolean}
- */
-function hasFlightFreeStreak(s, n) {
-  const loggedDates = [...new Set(s.activities.map(a => a.date))].sort();
-  if (loggedDates.length < n) return false;
-
-  let consecutive = 0;
-  for (const date of loggedDates) {
-    const hasFlights = s.activities.some(a =>
-      a.date === date && (a.activityType === 'Domestic flight' || a.activityType === 'Long-haul flight')
-    );
-    if (!hasFlights) {
-      consecutive++;
-      if (consecutive >= n) return true;
-    } else {
-      consecutive = 0;
-    }
-  }
-  return false;
-}
-
-/**
- * Finds the category with the highest total CO2 in the last 30 days.
- * @returns {{ category: string, total: number }}
- */
-function getBiggestCategory() {
-  const totals = getCategoryTotalsForLastNDays(30);
-  let biggest = 'transport';
-  let max = 0;
-  Object.entries(totals).forEach(([cat, total]) => {
-    if (total > max) { max = total; biggest = cat; }
-  });
-  return { category: biggest, total: max };
-}
-

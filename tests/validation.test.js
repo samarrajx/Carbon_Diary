@@ -15,12 +15,12 @@ describe('Input validation edge cases', () => {
       .toBeCloseTo(3.305, 1);
   });
   test('very large distance does not crash', () => {
-    expect(() => calcCO2('transport', 
+    expect(() => calcCO2('transport',
       'Car trip (petrol)', 99999))
       .not.toThrow();
   });
   test('string quantity treated as 0', () => {
-    expect(calcCO2('transport', 
+    expect(calcCO2('transport',
       'Car trip (petrol)', 'abc'))
       .toBe(0);
   });
