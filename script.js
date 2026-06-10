@@ -22,92 +22,94 @@ let activeCategory = 'transport';
 // ============================================================
 
 /**
- * Wires up all event listeners for the application.
+ * Wires up navigation-related event listeners.
  */
-function initEventListeners() {
-
-  // Sidebar nav items
+function initNavListeners() {
   document.querySelectorAll('.nav-item[data-page]').forEach(item => {
     item.addEventListener('click', () => navigateTo(item.dataset.page));
   });
-
-  // Mobile tabs
   document.querySelectorAll('.mobile-tab[data-page]').forEach(tab => {
     tab.addEventListener('click', () => navigateTo(tab.dataset.page));
   });
-
-  // Mobile menu toggle
   const menuToggle = document.getElementById('menuToggle');
   if (menuToggle) {
     menuToggle.addEventListener('click', () => {
-      const isOpen = document.getElementById('sidebar').classList.contains('open');
+      const isOpen = document.getElementById('sidebar')
+        .classList.contains('open');
       if (isOpen) closeMobileSidebar(); else openMobileSidebar();
     });
   }
-
-  // Sidebar overlay click to close
   const overlay = document.getElementById('sidebarOverlay');
   if (overlay) overlay.addEventListener('click', closeMobileSidebar);
+}
 
-  // Theme toggle
-  const themeToggle = document.getElementById('themeToggle');
-  if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
-
-  // Category tabs
-  document.querySelectorAll('.cat-tab[data-cat]').forEach(tab => {
-    tab.addEventListener('click', () => switchCategory(tab.dataset.cat));
-  });
-
-  // Log form
+/**
+ * Wires up log form and CO2 preview event listeners.
+ */
+function initLogFormListeners() {
   const logForm = document.getElementById('logForm');
   if (logForm) logForm.addEventListener('submit', handleLogSubmit);
-
-  // Live CO2 preview — transport
-  document.getElementById('transportType').addEventListener('change', updateCO2Preview);
-  document.getElementById('transportQty').addEventListener('input', updateCO2Preview);
-
-  // Live CO2 preview — energy
-  document.getElementById('energyType').addEventListener('change', updateCO2Preview);
-  document.getElementById('energyQty').addEventListener('input', updateCO2Preview);
-
-  // Live CO2 preview — food
-  document.getElementById('foodType').addEventListener('change', updateCO2Preview);
-  document.getElementById('foodQty').addEventListener('input', updateCO2Preview);
-
-  // Live CO2 preview — shopping
-  document.getElementById('shoppingType').addEventListener('change', updateCO2Preview);
-  document.getElementById('shoppingQty').addEventListener('input', updateCO2Preview);
-
-  // Energy unit label update on type change
-  document.getElementById('energyType').addEventListener('change', () => {
-    const type = document.getElementById('energyType').value;
-    const factor = EMISSION_FACTORS.energy[type];
+  const previewFields = [
+    'transportType','transportQty','energyType','energyQty',
+    'foodType','foodQty','shoppingType','shoppingQty'
+  ];
+  previewFields.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener(
+      el.tagName === 'SELECT' ? 'change' : 'input',
+      updateCO2Preview
+    );
+  });
+  const energyType = document.getElementById('energyType');
+  if (energyType) energyType.addEventListener('change', () => {
+    const factor = EMISSION_FACTORS.energy[energyType.value];
     const label = document.getElementById('energyUnitLabel');
     if (label && factor) label.textContent = `Quantity (${factor.unit})`;
   });
+}
 
-  // Chat send button
+/**
+ * Wires up AI coach chat event listeners.
+ */
+function initCoachListeners() {
   const sendBtn = document.getElementById('chatSendBtn');
   if (sendBtn) sendBtn.addEventListener('click', () => {
     const input = document.getElementById('chatInput');
-    if (input) handleChatMessage(input.value);
+    if (input && input.value.trim()) handleChatMessage(input.value);
   });
-
-  // Chat input — send on Enter
   const chatInput = document.getElementById('chatInput');
-  if (chatInput) {
-    chatInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        handleChatMessage(chatInput.value);
-      }
-    });
-  }
-
-  // Quick question buttons
-  document.querySelectorAll('.quick-q-btn[data-q]').forEach(btn => {
-    btn.addEventListener('click', () => handleChatMessage(btn.dataset.q));
+  if (chatInput) chatInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleChatMessage(chatInput.value);
+    }
   });
+  document.querySelectorAll('.quick-question').forEach(btn => {
+    btn.addEventListener('click', () =>
+      handleChatMessage(btn.dataset.question || btn.textContent)
+    );
+  });
+}
+
+/**
+ * Wires up miscellaneous event listeners (theme, category tabs).
+ */
+function initMiscListeners() {
+  const themeToggle = document.getElementById('themeToggle');
+  if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
+  document.querySelectorAll('.cat-tab[data-cat]').forEach(tab => {
+    tab.addEventListener('click', () => switchCategory(tab.dataset.cat));
+  });
+}
+
+/**
+ * Wires up all event listeners for the application.
+ */
+function initEventListeners() {
+  initNavListeners();
+  initLogFormListeners();
+  initCoachListeners();
+  initMiscListeners();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -488,6 +490,51 @@ function getColorClass(dailyKg) {
 }
 
 /**
+ * Returns CSS background color for a daily CO2 value.
+ * @param {number} co2kg - Daily CO2 total in kg
+ * @returns {string} CSS color string
+ */
+function getHeatmapColor(co2kg) {
+  if (co2kg < 0) return 'var(--bg-card)';
+  if (co2kg <= 5) return '#2d6a4f';
+  if (co2kg <= 8) return '#52b788';
+  if (co2kg <= 12) return '#f4a261';
+  return '#e63946';
+}
+
+/**
+ * Returns accessible aria-label for a calendar cell.
+ * @param {string} dateStr - Date string YYYY-MM-DD
+ * @param {number} co2kg - CO2 logged (-1 if no data)
+ * @returns {string} Aria label text
+ */
+function getCalendarCellLabel(dateStr, co2kg) {
+  if (co2kg < 0) return `${dateStr}: no data`;
+  return `${dateStr}: ${co2kg.toFixed(2)}kg CO2`;
+}
+
+/**
+ * Builds HTML for a single calendar heatmap cell.
+ * @param {string} dateStr - Date string YYYY-MM-DD
+ * @param {number} co2kg - CO2 for this day (-1 if no data)
+ * @param {boolean} isToday - Whether this cell represents today
+ * @returns {string} HTML string
+ */
+function buildCalendarCell(dateStr, co2kg, isToday) {
+  const color = getHeatmapColor(co2kg);
+  const label = getCalendarCellLabel(dateStr, co2kg);
+  const dayNum = new Date(dateStr).getDate();
+  const todayClass = isToday ? ' today-cell' : '';
+  return `<div class="cal-cell${todayClass}" 
+    style="background:${color}" 
+    aria-label="${label}"
+    role="gridcell"
+    title="${label}">
+    <span class="cal-day">${dayNum}</span>
+  </div>`;
+}
+
+/**
  * Renders the 30-day calendar heatmap.
  */
 function renderCalendarHeatmap() {
@@ -648,6 +695,38 @@ function renderBreakdownBars() {
       bar.style.width = bar.dataset.target + '%';
     });
   });
+}
+
+/**
+ * Normalises a CO2 value to a Y coordinate in an SVG chart.
+ * @param {number} value - CO2 value in kg
+ * @param {number} maxVal - Maximum value in dataset (for scale)
+ * @param {number} chartHeight - Total SVG height in px
+ * @param {number} padding - Top/bottom padding in px
+ * @returns {number} SVG Y coordinate
+ */
+function calcChartY(value, maxVal, chartHeight, padding) {
+  if (maxVal === 0) return chartHeight - padding;
+  return chartHeight - padding -
+    ((value / maxVal) * (chartHeight - padding * 2));
+}
+
+/**
+ * Builds an SVG polyline points attribute string from data values.
+ * @param {number[]} values - Array of 7 daily CO2 values
+ * @param {number} chartWidth - SVG width in px
+ * @param {number} chartHeight - SVG height in px
+ * @returns {string} SVG points string e.g. "0,100 50,80 ..."
+ */
+function buildPolylinePoints(values, chartWidth, chartHeight) {
+  const padding = 20;
+  const maxVal = Math.max(...values, 1);
+  const stepX = chartWidth / (values.length - 1);
+  return values.map((v, i) => {
+    const x = i * stepX;
+    const y = calcChartY(v, maxVal, chartHeight, padding);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
 }
 
 /**

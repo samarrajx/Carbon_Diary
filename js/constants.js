@@ -5,6 +5,8 @@
  *
  * @version 1.0.0
  */
+'use strict';
+
 
 /**
  * Application version string.
@@ -339,3 +341,10 @@ if (typeof module !== 'undefined' && module.exports) {
     APP_VERSION
   };
 }
+
+/* Freeze all objects to prevent accidental mutation */
+Object.freeze(EMISSION_FACTORS);
+Object.freeze(CHALLENGE_POOL);
+Object.freeze(ACHIEVEMENTS);
+Object.freeze(LEVELS);
+Object.freeze(COMPARISONS);

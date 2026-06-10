@@ -5,6 +5,7 @@
  *
  * @version 1.0.0
  */
+'use strict';
 
 const STORAGE_KEY_LOCAL = (typeof STORAGE_KEY !== 'undefined') 
   ? STORAGE_KEY 

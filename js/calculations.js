@@ -5,6 +5,7 @@
  *
  * @version 1.0.0
  */
+'use strict';
 
 // If running in Node/Jest, try to require constants
 let LOCAL_EMISSION_FACTORS = typeof EMISSION_FACTORS !== 'undefined' ? EMISSION_FACTORS : null;
