@@ -48,7 +48,7 @@ function saveState(state) {
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_LOCAL);
-    if (!raw) return getDefaultState();
+    if (!raw || raw === 'undefined') return getDefaultState();
     
     // safe parsing
     const parsed = JSON.parse(raw);

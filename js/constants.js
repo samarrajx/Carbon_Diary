@@ -347,6 +347,17 @@ const DAYS_IN_YEAR = 365;
 /** Global comparison scale maximum (US average in tonnes) */
 const MAX_GLOBAL_TONS = 16;
 
+/**
+ * Category configuration.
+ * @type {Object}
+ */
+const CAT_CONFIG = {
+  transport: { icon: '🚗', label: 'Transport', color: '#3b82f6' },
+  energy: { icon: '⚡', label: 'Energy', color: '#f59e0b' },
+  food: { icon: '🍽️', label: 'Food', color: '#10b981' },
+  shopping: { icon: '🛒', label: 'Shopping', color: '#8b5cf6' }
+};
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     EMISSION_FACTORS,
@@ -357,7 +368,8 @@ if (typeof module !== 'undefined' && module.exports) {
     DAILY_TARGET_KG,
     COMPARISONS,
     STORAGE_KEY,
-    APP_VERSION
+    APP_VERSION,
+    CAT_CONFIG
   };
 }
 
@@ -367,3 +379,4 @@ Object.freeze(CHALLENGE_POOL);
 Object.freeze(ACHIEVEMENTS);
 Object.freeze(LEVELS);
 Object.freeze(COMPARISONS);
+Object.freeze(CAT_CONFIG);
