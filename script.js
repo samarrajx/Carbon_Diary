@@ -182,9 +182,10 @@ document.addEventListener('DOMContentLoaded', () => {
  * Hides all page sections and clears active nav states.
  */
 function hideAllPages() {
-  document.querySelectorAll('.page').forEach(p =>
-    p.classList.remove('active')
-  );
+  document.querySelectorAll('.page').forEach(p => {
+    p.classList.remove('active');
+    p.hidden = true;
+  });
   document.querySelectorAll('.nav-item, .mobile-tab').forEach(n =>
     n.classList.remove('active')
   );
