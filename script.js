@@ -1566,6 +1566,7 @@ function renderStreakBanner(todayTotal) {
   }
 }
 
+let toastTimeout;
 /**
  * Shows a brief toast notification and announces it to screen readers.
  * @param {string} message
