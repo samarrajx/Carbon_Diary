@@ -1320,7 +1320,7 @@ function handleChatMessage(message) {
 
   // Delay for "thinking" effect
   setTimeout(() => {
-    const response = generateCoachResponse(text.toLowerCase());
+    const response = generateCoachResponse(text.toLowerCase(), state);
     addAIMessage(response);
   }, 1200);
 }
