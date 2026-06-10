@@ -322,36 +322,30 @@ function getShoppingInputs() {
  * @returns {{ activityType: string, quantity: number, unit: string, co2kg: number }}
  */
 function getFormValues() {
-  let activityType = '';
-  let quantity = 0;
-  let unit = '';
-  let co2kg = 0;
-
-  if (activeCategory === 'transport') {
-    const i = getTransportInputs();
-    activityType = i.type; quantity = i.quantity;
-    unit = 'km';
-    co2kg = calcCO2('transport', activityType, quantity);
-  } else if (activeCategory === 'energy') {
-    const i = getEnergyInputs();
-    activityType = i.type; quantity = i.quantity;
-    const energyFactor = EMISSION_FACTORS.energy[activityType];
-    unit = energyFactor ? energyFactor.unit : 'units';
-    co2kg = calcCO2('energy', activityType, quantity);
-  } else if (activeCategory === 'food') {
-    const i = getFoodInputs();
-    activityType = i.type; quantity = i.quantity;
-    unit = 'servings';
-    co2kg = calcCO2('food', activityType, quantity);
-  } else if (activeCategory === 'shopping') {
-    const i = getShoppingInputs();
-    activityType = i.type; quantity = i.quantity;
-    const shoppingFactor = EMISSION_FACTORS.shopping[activityType];
-    unit = shoppingFactor ? shoppingFactor.unit : 'items';
-    co2kg = calcCO2('shopping', activityType, quantity);
-  }
-
-  return { activityType, quantity, unit, co2kg };
+  const inputs = {
+    transport: getTransportInputs,
+    energy:    getEnergyInputs,
+    food:      getFoodInputs,
+    shopping:  getShoppingInputs,
+  };
+  const units = { 
+    transport: 'km', 
+    food: 'servings', 
+    shopping: 'items' 
+  };
+  const getter = inputs[activeCategory];
+  if (!getter) return null;
+  const i = getter();
+  const unit = units[activeCategory] || 
+    (EMISSION_FACTORS[activeCategory]?.[i.type]?.unit ?? 'units');
+  const co2kg = calcCO2(activeCategory, i.type, i.quantity);
+  return { 
+    category: activeCategory, 
+    activityType: i.type, 
+    quantity: i.quantity, 
+    unit, 
+    co2kg 
+  };
 }
 
 /**
@@ -442,26 +436,30 @@ function buildEntryCardHTML(entry, cfg) {
 }
 
 /**
+ * Updates the today page subtitle and entry count display.
+ * @param {number} total - Today's total CO2 in kg
+ * @param {number} count - Number of entries today
+ */
+function updateTodayStats(total, count) {
+  const sub = document.getElementById('todayTotalSubtitle');
+  if (sub) sub.textContent = `${total.toFixed(2)} kg CO₂`;
+  const countEl = document.getElementById('entryCount');
+  if (countEl) countEl.textContent = 
+    count === 1 ? '1 activity' : `${count} activities`;
+}
+
+/**
  * Renders the full Today's Log page including entries list and summary.
  */
 function renderTodayPage() {
   const today = getTodayString();
-  const todayEntries = getActivitiesForDate(today)
-    .sort((a, b) => b.timestamp - a.timestamp);
+  const todayEntries = getActivitiesForDate(today).sort((a, b) => b.timestamp - a.timestamp);
   const todayTotal = todayEntries.reduce((s, e) => s + e.co2kg, 0);
 
-  // Update subtitle
-  const sub = document.getElementById('todayTotalSubtitle');
-  if (sub) sub.textContent = `${todayTotal.toFixed(2)} kg CO₂`;
-
-  // Streak banner
+  updateTodayStats(todayTotal, todayEntries.length);
   renderStreakBanner(todayTotal);
 
-  // Entries list
   const list = document.getElementById('entriesList');
-  const count = document.getElementById('entryCount');
-  if (count) count.textContent = `${todayEntries.length} ${todayEntries.length === 1 ? 'activity' : 'activities'}`;
-
   if (!list) return;
 
   if (todayEntries.length === 0) {
@@ -474,11 +472,7 @@ function renderTodayPage() {
     return;
   }
 
-  list.innerHTML = todayEntries.map(entry =>
-    buildEntryCardHTML(entry, CAT_CONFIG[entry.category])
-  ).join('');
-
-  // Summary bar
+  list.innerHTML = todayEntries.map(entry => buildEntryCardHTML(entry, CAT_CONFIG[entry.category])).join('');
   renderSummaryBar(todayEntries, todayTotal);
 }
 
@@ -622,68 +616,59 @@ function buildCalendarCell(dateStr, co2kg, isToday) {
  * Renders the 30-day calendar heatmap.
  */
 /**
+ * Builds the 7-column day-of-week header row for the calendar.
+ * @returns {string} HTML string for the 7 header divs
+ */
+function buildCalendarHeader() {
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  return days.map(d => `<div class="cal-day-header" aria-hidden="true">${d}</div>`).join('');
+}
+
+/**
+ * Generates date strings for the 30-day calendar window.
+ * @returns {string[]} Array of YYYY-MM-DD strings oldest first
+ */
+function getCalendarDates() {
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  const dates = [];
+  for (let i = CALENDAR_DAYS - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    dates.push(d.toISOString().slice(0, 10));
+  }
+  return dates;
+}
+
+/**
  * Renders the 30-day calendar heatmap.
  */
 function renderCalendarHeatmap() {
   const grid = document.getElementById('calendarGrid');
   if (!grid) return;
 
-  // Build 7-column header (Sun–Sat)
-  const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  let html = dayHeaders.map(d =>
-    `<div class="cal-day-header" aria-hidden="true">${d}</div>`
-  ).join('');
-
-  const today = new Date();
-  today.setHours(12, 0, 0, 0);
-
-  // Find the first day of the 30-day window
-  const startDate = new Date(today);
-  startDate.setDate(startDate.getDate() - (CALENDAR_DAYS - 1));
-
-  // Add empty padding cells for day-of-week alignment
-  const startDow = startDate.getDay();
-  for (let i = 0; i < startDow; i++) {
+  let html = buildCalendarHeader();
+  const dates = getCalendarDates();
+  const startDate = new Date(dates[0] + 'T12:00:00');
+  for (let i = 0; i < startDate.getDay(); i++) {
     html += `<div class="cal-day empty-day" aria-hidden="true"></div>`;
   }
 
-  // Add one cell per calendar day
+  const todayStr = getTodayString();
   for (let i = 0; i < CALENDAR_DAYS; i++) {
-    const d = new Date(startDate);
-    d.setDate(d.getDate() + i);
-    const dateStr = d.toISOString().split('T')[0];
+    const dateStr = dates[i];
     const total = getDayTotal(dateStr);
-    const isToday = dateStr === getTodayString();
     const hasData = getActivitiesForDate(dateStr).length > 0;
-    const co2kg = hasData ? total : -1;
-
+    
     let lvlClass = 'no-data';
-    if (hasData) {
-      if (total < 5) lvlClass = 'lvl-0';
-      else if (total < 10) lvlClass = 'lvl-1';
-      else if (total < 15) lvlClass = 'lvl-2';
-      else lvlClass = 'lvl-3';
-    }
+    if (hasData) lvlClass = total < 5 ? 'lvl-0' : total < 10 ? 'lvl-1' : total < 15 ? 'lvl-2' : 'lvl-3';
 
-    const todayClass = isToday ? ' today' : '';
-    const ariaLabel = hasData
-      ? `${formatDateShort(dateStr)}: ${total.toFixed(1)} kg CO₂`
-      : `${formatDateShort(dateStr)}: no data`;
-
-    html += `
-      <div class="cal-day ${lvlClass}${todayClass}"
-        data-date="${dateStr}"
-        data-total="${total.toFixed(1)}"
-        aria-label="${ariaLabel}"
-        tabindex="0"
-        role="gridcell">
-        ${d.getDate()}
-      </div>`;
+    const ariaLabel = hasData ? `${formatDateShort(dateStr)}: ${total.toFixed(1)} kg CO₂` : `${formatDateShort(dateStr)}: no data`;
+    html += `<div class="cal-day ${lvlClass}${dateStr === todayStr ? ' today' : ''}" data-date="${dateStr}" data-total="${total.toFixed(1)}" aria-label="${ariaLabel}" tabindex="0" role="gridcell">${dateStr.split('-')[2]}</div>`;
   }
 
   grid.innerHTML = html;
-
-  // Attach hover tooltips
+  
   grid.querySelectorAll('.cal-day:not(.empty-day)').forEach(cell => {
     cell.addEventListener('mouseenter', showCalTooltip);
     cell.addEventListener('mouseleave', hideCalTooltip);
@@ -864,6 +849,64 @@ function buildWeeklyAxisLabels(labels, w) {
  * Renders the SVG weekly trend line chart for the last 7 days.
  */
 /**
+ * Builds SVG grid lines for the weekly chart.
+ * @param {number} w - Chart width
+ * @param {number} h - Chart height  
+ * @param {number} padL - Left padding
+ * @param {number} padT - Top padding
+ * @param {number} padB - Bottom padding
+ * @returns {string} SVG line elements HTML
+ */
+function buildChartGridLines(w, h, padL, padT, padB) {
+  const lines = [];
+  const steps = 4;
+  for (let i = 0; i <= steps; i++) {
+    const y = padT + (i / steps) * (h - padT - padB);
+    lines.push(
+      `<line class="chart-grid-line" x1="${padL}" y1="${y.toFixed(1)}" 
+        x2="${w - CHART_PAD_RIGHT}" y2="${y.toFixed(1)}" />`
+    );
+  }
+  return lines.join('');
+}
+
+/**
+ * Builds SVG circle dots for each data point on the chart.
+ * @param {number[]} values - 7 daily values
+ * @param {number} w - Chart width
+ * @param {number} maxVal - Max value for scaling
+ * @param {number} chartH - Chart height
+ * @returns {string} SVG circle elements HTML
+ */
+function buildChartDots(values, w, maxVal, chartH) {
+  const stepX = (w - CHART_PAD_LEFT - CHART_PAD_RIGHT) / (values.length - 1);
+  return values.map((v, i) => {
+    const x = CHART_PAD_LEFT + i * stepX;
+    const y = calcChartY(v, maxVal, chartH, CHART_POINT_PADDING);
+    return `<circle class="chart-dot" cx="${x.toFixed(1)}" 
+      cy="${y.toFixed(1)}" r="4" />`;
+  }).join('');
+}
+
+/**
+ * Builds the SVG target reference line and label.
+ * @param {number} targetKg - Target daily kg value
+ * @param {number} maxVal - Max value for scaling
+ * @param {number} w - Chart width
+ * @param {number} chartH - Chart height
+ * @returns {string} SVG elements HTML
+ */
+function buildTargetLine(targetKg, maxVal, w, chartH) {
+  const y = calcChartY(targetKg, maxVal, chartH, CHART_POINT_PADDING);
+  return `<line class="chart-target-line" 
+    x1="${CHART_PAD_LEFT}" y1="${y.toFixed(1)}" 
+    x2="${w - CHART_PAD_RIGHT}" y2="${y.toFixed(1)}" />
+  <text class="chart-target-label" 
+    x="${w - CHART_PAD_RIGHT + 2}" y="${(y + 3).toFixed(1)}" 
+    text-anchor="start">Target (${DAILY_TARGET_KG}kg)</text>`;
+}
+
+/**
  * Renders the SVG weekly trend line chart for the last 7 days.
  */
 function renderWeeklyChart() {
@@ -871,72 +914,34 @@ function renderWeeklyChart() {
   if (!svg) return;
 
   const W = CHART_WIDTH, H = CHART_HEIGHT;
-  const padL = CHART_PAD_LEFT, padR = CHART_PAD_RIGHT, padT = CHART_PAD_TOP, padB = CHART_PAD_BOTTOM;
-  const chartW = W - padL - padR;
-  const chartH = H - padT - padB;
-
-  // Gather last 7 days data
-  const days = [];
-  for (let i = 6; i >= 0; i--) {
-    const ds = dateNDaysAgo(i);
-    days.push({ ds, label: getDayLabel(ds), total: getDayTotal(ds) });
-  }
-
-  const maxVal = Math.max(...days.map(d => d.total), DAILY_TARGET_KG * 1.2, 1);
-  const minVal = 0;
-  const range = maxVal - minVal;
-
-  const toX = (i) => padL + (i / 6) * chartW;
-  const toY = (v) => padT + chartH - ((v - minVal) / range) * chartH;
-
-  // Grid lines
-  let gridLines = '';
-  for (let gi = 0; gi <= 3; gi++) {
-    const gy = padT + (gi / 3) * chartH;
-    const gval = (maxVal * (1 - gi / 3)).toFixed(1);
-    gridLines += `<line class="chart-grid-line" x1="${padL}" y1="${gy.toFixed(1)}" x2="${W - padR}" y2="${gy.toFixed(1)}"/>`;
-    gridLines += `<text class="chart-label" x="${padL - 4}" y="${(gy + 3).toFixed(1)}" text-anchor="end">${gval}</text>`;
-  }
-
-  // Target line at DAILY_TARGET_KG
-  const targetY = toY(DAILY_TARGET_KG).toFixed(1);
-  const targetLine = `
-    <line class="chart-target-line" x1="${padL}" y1="${targetY}" x2="${W - padR}" y2="${targetY}"/>
-    <text class="chart-target-label" x="${(W - padR + 2)}" y="${(parseFloat(targetY) + 3).toFixed(1)}" text-anchor="start">Target (8kg)</text>
-  `;
-
-  // Area fill path
-  const areaPath = `M ${toX(0).toFixed(1)},${toY(days[0].total).toFixed(1)} ` +
-    days.slice(1).map((d, i) => `L ${toX(i + 1).toFixed(1)},${toY(d.total).toFixed(1)}`).join(' ') +
-    ` L ${toX(6).toFixed(1)},${(padT + chartH).toFixed(1)} L ${toX(0).toFixed(1)},${(padT + chartH).toFixed(1)} Z`;
-
-  // Polyline using helper
-  const polyPoints = buildWeeklyPoints(days.map(d => d.total), W, H);
-
-  // Dots + axis labels using helper
-  let dots = '';
-  days.forEach((d, i) => {
-    const cx = toX(i).toFixed(1);
-    const cy = toY(d.total).toFixed(1);
-    dots += `<circle class="chart-dot" cx="${cx}" cy="${cy}" r="4" aria-label="${d.label}: ${d.total.toFixed(1)} kg"/>`;
+  const days = Array.from({length: 7}, (_, i) => {
+    const ds = dateNDaysAgo(6 - i);
+    return { ds, label: getDayLabel(ds), total: getDayTotal(ds) };
   });
+
+  const vals = days.map(d => d.total);
+  const maxVal = Math.max(...vals, DAILY_TARGET_KG * 1.2, 1);
+  const chartH = H - CHART_PAD_TOP - CHART_PAD_BOTTOM;
+
+  const gridLines = buildChartGridLines(W, H, CHART_PAD_LEFT, CHART_PAD_TOP, CHART_PAD_BOTTOM);
+  const targetLine = buildTargetLine(DAILY_TARGET_KG, maxVal, W, chartH);
+  const polyPoints = buildWeeklyPoints(vals, W, H);
+  const dots = buildChartDots(vals, W, maxVal, chartH);
   const axisLabels = buildWeeklyAxisLabels(days.map(d => d.label), W);
 
-  // Axes
+  const toX = (i) => CHART_PAD_LEFT + (i / 6) * (W - CHART_PAD_LEFT - CHART_PAD_RIGHT);
+  const toY = (v) => calcChartY(v, maxVal, chartH, CHART_POINT_PADDING);
+  const areaPath = `M ${toX(0).toFixed(1)},${toY(vals[0]).toFixed(1)} ` +
+    vals.slice(1).map((v, i) => `L ${toX(i + 1).toFixed(1)},${toY(v).toFixed(1)}`).join(' ') +
+    ` L ${toX(6).toFixed(1)},${(CHART_PAD_TOP + chartH).toFixed(1)} L ${toX(0).toFixed(1)},${(CHART_PAD_TOP + chartH).toFixed(1)} Z`;
+
   const axes = `
-    <line class="chart-axis-line" x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT + chartH}"/>
-    <line class="chart-axis-line" x1="${padL}" y1="${padT + chartH}" x2="${W - padR}" y2="${padT + chartH}"/>
+    <line class="chart-axis-line" x1="${CHART_PAD_LEFT}" y1="${CHART_PAD_TOP}" x2="${CHART_PAD_LEFT}" y2="${CHART_PAD_TOP + chartH}"/>
+    <line class="chart-axis-line" x1="${CHART_PAD_LEFT}" y1="${CHART_PAD_TOP + chartH}" x2="${W - CHART_PAD_RIGHT}" y2="${CHART_PAD_TOP + chartH}"/>
   `;
 
-  svg.innerHTML = `
-    ${gridLines}
-    ${targetLine}
-    ${axes}
-    <path class="chart-area" d="${areaPath}"/>
-    <polyline class="chart-polyline" points="${polyPoints}" fill="none"/>
-    ${dots}
-    ${axisLabels}
-  `;
+  svg.innerHTML = gridLines + targetLine + axes + `<path class="chart-area" d="${areaPath}"/>` +
+    `<polyline class="chart-polyline" points="${polyPoints}" fill="none"/>` + dots + axisLabels;
 }
 
 /**
@@ -965,6 +970,25 @@ function calcPinPosition(yearlyTons) {
 }
 
 /**
+ * Builds HTML for a single comparison benchmark row.
+ * @param {Object} b - Benchmark object {label, val, color}
+ * @param {number|null} userVal - User's yearly pace in tonnes
+ * @returns {string} HTML string for the row
+ */
+function buildBenchmarkRowHTML(b, userVal) {
+  const pct = Math.min(100, (b.val / MAX_GLOBAL_TONS) * 100);
+  const isUser = userVal !== null && Math.abs(userVal - b.val) < 0.05;
+  return `<div class="comp-row">
+    <div class="comp-label">${b.label}</div>
+    <div class="comp-bar-track">
+      <div class="comp-bar-fill ${isUser ? 'user-bar' : ''}" style="background:${b.color};width:${pct.toFixed(1)}%"
+        role="progressbar" aria-valuenow="${pct.toFixed(0)}" aria-valuemin="0" aria-valuemax="100"></div>
+    </div>
+    <div class="comp-val">${b.val}t</div>
+  </div>`;
+}
+
+/**
  * Renders the global comparison horizontal bar chart.
  */
 function renderComparisonCard() {
@@ -972,16 +996,7 @@ function renderComparisonCard() {
   if (!container) return;
 
   const month = getTotalForLastNDays(CALENDAR_DAYS);
-  const yearlyPaceTons = month > 0 ? (month / CALENDAR_DAYS) * DAYS_IN_YEAR / 1000 : null;
-
-  const benchmarks = [
-    { label: '🇮🇳 India avg',  val: 1.9,  color: '#059669' },
-    { label: '🌍 Global avg',  val: 4.0,  color: '#3b82f6' },
-    { label: '🇪🇺 EU avg',     val: 7.0,  color: '#f59e0b' },
-    { label: '🇺🇸 US avg',     val: 14.9, color: '#e63946' },
-  ];
-
-  const userVal = yearlyPaceTons;
+  const userVal = month > 0 ? (month / CALENDAR_DAYS) * DAYS_IN_YEAR / 1000 : null;
   let rows = '';
 
   if (userVal !== null) {
@@ -1000,19 +1015,7 @@ function renderComparisonCard() {
       </div>`;
   }
 
-  rows += benchmarks.map(b => {
-    const pct = (b.val / MAX_GLOBAL_TONS) * 100;
-    return `
-      <div class="comp-row">
-        <div class="comp-label">${b.label}</div>
-        <div class="comp-bar-track">
-          <div class="comp-bar-fill" style="background:${b.color};width:${pct.toFixed(1)}%"
-            role="progressbar" aria-valuenow="${pct.toFixed(0)}" aria-valuemin="0" aria-valuemax="100"></div>
-        </div>
-        <div class="comp-val">${b.val}t</div>
-      </div>`;
-  }).join('');
-
+  rows += BENCHMARKS.map(b => buildBenchmarkRowHTML(b, userVal)).join('');
   container.innerHTML = rows;
 }
 

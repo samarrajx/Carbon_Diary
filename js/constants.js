@@ -331,6 +331,18 @@ const COMPARISONS = [
   { label: '🇺🇸 US avg',     val: 14.9, color: '#e63946' },
 ];
 
+/**
+ * Benchmark data for global CO2 comparison.
+ * @type {Array<Object>}
+ */
+const BENCHMARKS = [
+  { label: '🎯 Paris Target', val: 2.0, color: '#059669' },
+  { label: '🇮🇳 India avg',   val: 1.9, color: '#10b981' },
+  { label: '🌍 Global avg',   val: 4.0, color: '#3b82f6' },
+  { label: '🇪🇺 EU avg',      val: 7.0, color: '#f59e0b' },
+  { label: '🇺🇸 US avg',      val: 14.9,color: '#e63946' },
+];
+
 /** Chart dimensions for weekly SVG chart */
 const CHART_WIDTH = 520;
 const CHART_HEIGHT = 180;
@@ -369,7 +381,8 @@ if (typeof module !== 'undefined' && module.exports) {
     COMPARISONS,
     STORAGE_KEY,
     APP_VERSION,
-    CAT_CONFIG
+    CAT_CONFIG,
+    BENCHMARKS
   };
 }
 
@@ -380,3 +393,4 @@ Object.freeze(ACHIEVEMENTS);
 Object.freeze(LEVELS);
 Object.freeze(COMPARISONS);
 Object.freeze(CAT_CONFIG);
+Object.freeze(BENCHMARKS);
