@@ -336,8 +336,8 @@ const COMPARISONS = [
  * @type {Array<Object>}
  */
 const BENCHMARKS = [
-  { label: '🎯 Paris Target', val: 2.0, color: '#059669' },
   { label: '🇮🇳 India avg',   val: 1.9, color: '#10b981' },
+  { label: '🎯 Paris Target', val: 2.0, color: '#059669' },
   { label: '🌍 Global avg',   val: 4.0, color: '#3b82f6' },
   { label: '🇪🇺 EU avg',      val: 7.0, color: '#f59e0b' },
   { label: '🇺🇸 US avg',      val: 14.9,color: '#e63946' },
@@ -382,7 +382,12 @@ if (typeof module !== 'undefined' && module.exports) {
     STORAGE_KEY,
     APP_VERSION,
     CAT_CONFIG,
-    BENCHMARKS
+    BENCHMARKS,
+    CHART_WIDTH,
+    CHART_HEIGHT,
+    CALENDAR_DAYS,
+    DAYS_IN_YEAR,
+    MAX_GLOBAL_TONS
   };
 }
 

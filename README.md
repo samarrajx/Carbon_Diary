@@ -96,16 +96,16 @@ npm install
 npm test
 ```
 
-- 100 unit tests across 5 test files
+- 125 unit tests across 5 test files
 
 | Test File | Tests | What It Covers |
 |-----------|-------|----------------|
 | calculations.test.js | 38 | CO2 math, daily totals, yearly pace, worst category, streak, AI coach |
 | utils.test.js | 23 | clamp, escapeHtml, formatCO2, generateId, safeJsonParse |
-| data.test.js | 19 | constants integrity, factor ordering |
+| data.test.js | 44 | constants integrity, factor ordering |
 | storage.test.js | 11 | localStorage save/load, corruption handling |
 | validation.test.js | 9 | edge cases, NaN, null, data ordering |
-| **Total** | **100** | **All passing ✅** |
+| **Total** | **125** | **All passing ✅** |
 
 - Run with Jest 29 + coverage reporting
 
