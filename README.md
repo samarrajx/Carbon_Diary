@@ -53,7 +53,7 @@ The key insight: **awareness drives behaviour change**. Research shows users who
 | **Code Quality** | Single `EMISSION_FACTORS` constant, `CHALLENGE_POOL`, `ACHIEVEMENTS` arrays, named functions for every feature, JSDoc comments | Clean architecture: `calcCO2()`, `handleLogSubmit()`, `generateCoachResponse()`, etc. — 60+ named functions |
 | **Security** | Zero external API calls, zero CDN scripts, zero data transmission, `escapeHtml()` on all dynamic content | All data stays in `localStorage`. No XSS vectors. `clamp()` on all numeric inputs |
 | **Efficiency** | CSS-only animations, `requestAnimationFrame` for bar chart animation, instant localStorage saves, no framework overhead | Opens instantly in any browser, works 100% offline |
-| **Testing** | 84 unit tests across calculations, validation, and data integrity | npm test — all passing, covers edge cases including NaN, null, negative inputs |
+| **Testing** | 125 unit tests across calculations, validation, and data integrity | npm test — all passing, covers edge cases including NaN, null, negative inputs |
 | **Accessibility** | WCAG 2.1 AA, semantic HTML5 (`aside`, `nav`, `main`, `section`, `article`), skip link, `role="tab"`, `aria-selected`, `role="log"` + `aria-live` on chat, `role="progressbar"` on XP bars, color+icon always paired | Calendar cells have `aria-label="date: X kg CO₂"`, all buttons have `aria-label` |
 
 ---
