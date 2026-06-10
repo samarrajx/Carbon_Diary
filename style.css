@@ -32,10 +32,6 @@
   --font-mono:    'JetBrains Mono', 'Courier New', monospace;
 
   /* category colors */
-  --c-transport:  #3b82f6;
-  --c-energy:     #f59e0b;
-  --c-food:       #10b981;
-  --c-shopping:   #8b5cf6;
 
   /* semantic color tokens */
   --color-transport:    #3b82f6;
@@ -164,7 +160,7 @@ img, svg { display: block; }
 .logo-title {
   font-size: 1.15rem;
   font-weight: 800;
-  color: #ffffff;
+  color: var(--bg-card);
   letter-spacing: -.02em;
 }
 .logo-tagline {
@@ -202,7 +198,7 @@ img, svg { display: block; }
   color: #fff;
   font-weight: 600;
 }
-[data-theme="dark"] .nav-item.active { background: #2d6a4f; }
+[data-theme="dark"] .nav-item.active { background: var(--accent); }
 
 /* Sidebar stats */
 .sidebar-stats {
@@ -460,10 +456,10 @@ img, svg { display: block; }
   background: var(--accent-pale);
   color: var(--accent);
 }
-.cat-tab[data-cat="transport"].active { border-color: var(--c-transport); background: rgba(59,130,246,.08); color: var(--c-transport); }
-.cat-tab[data-cat="energy"].active    { border-color: var(--c-energy);    background: rgba(245,158,11,.08); color: var(--c-energy); }
-.cat-tab[data-cat="food"].active      { border-color: var(--c-food);      background: rgba(16,185,129,.08); color: var(--c-food); }
-.cat-tab[data-cat="shopping"].active  { border-color: var(--c-shopping);  background: rgba(139,92,246,.08); color: var(--c-shopping); }
+.cat-tab[data-cat="transport"].active { border-color: var(--color-transport); background: rgba(59,130,246,.08); color: var(--color-transport); }
+.cat-tab[data-cat="energy"].active    { border-color: var(--color-energy);    background: rgba(245,158,11,.08); color: var(--color-energy); }
+.cat-tab[data-cat="food"].active      { border-color: var(--color-food);      background: rgba(16,185,129,.08); color: var(--color-food); }
+.cat-tab[data-cat="shopping"].active  { border-color: var(--color-shopping);  background: rgba(139,92,246,.08); color: var(--color-shopping); }
 
 /* Log Form */
 .log-form { display: flex; flex-direction: column; gap: 14px; }
@@ -695,14 +691,14 @@ select.form-control option { background: var(--bg-card); color: var(--text); }
 [data-theme="dark"] .cal-day.no-data { background: #1e2d1e; color: #4a6a4a; }
 .cal-day.lvl-0  { background: var(--color-success);       color: #fff; }
 .cal-day.lvl-1  { background: var(--color-success-light); color: #fff; }
-.cal-day.lvl-2  { background: var(--color-warning);       color: #1a1a2e; }
+.cal-day.lvl-2  { background: var(--color-warning);       color: var(--text); }
 .cal-day.lvl-3  { background: var(--color-danger);        color: #fff; }
 .cal-day.today  { box-shadow: 0 0 0 2.5px var(--accent), 0 0 0 4px var(--bg-card); }
 
 /* Tooltip */
 .cal-tooltip {
   position: fixed;
-  background: #1a1a2e;
+  background: var(--text);
   color: #fff;
   font-size: .75rem;
   padding: 5px 10px;
@@ -713,7 +709,7 @@ select.form-control option { background: var(--bg-card); color: var(--text); }
   opacity: 0;
   transition: opacity .15s;
 }
-[data-theme="dark"] .cal-tooltip { background: #e8f5e9; color: #1a1a2e; }
+[data-theme="dark"] .cal-tooltip { background: #e8f5e9; color: var(--text); }
 
 /* Category bar chart */
 .breakdown-bars { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
@@ -1098,7 +1094,7 @@ select.form-control option { background: var(--bg-card); color: var(--text); }
   position: fixed;
   bottom: 24px;
   right: 24px;
-  background: #1a1a2e;
+  background: var(--text);
   color: #fff;
   padding: 12px 20px;
   border-radius: var(--radius-sm);
@@ -1112,7 +1108,7 @@ select.form-control option { background: var(--bg-card); color: var(--text); }
   max-width: 300px;
 }
 .toast.show { transform: translateY(0); opacity: 1; }
-[data-theme="dark"] .toast { background: #e8f5e9; color: #1a1a2e; }
+[data-theme="dark"] .toast { background: #e8f5e9; color: var(--text); }
 
 /* ================================================================
    RESPONSIVE — Mobile
@@ -1196,10 +1192,10 @@ select.form-control option { background: var(--bg-card); color: var(--text); }
 .mt-20 { margin-top: 20px; }
 
 /* Legend dots */
-.dot-transport { background: var(--c-transport); }
-.dot-energy    { background: var(--c-energy); }
-.dot-food      { background: var(--c-food); }
-.dot-shopping  { background: var(--c-shopping); }
+.dot-transport { background: var(--color-transport); }
+.dot-energy    { background: var(--color-energy); }
+.dot-food      { background: var(--color-food); }
+.dot-shopping  { background: var(--color-shopping); }
 
 /* Heatmap legend */
 .heatmap-legend {
