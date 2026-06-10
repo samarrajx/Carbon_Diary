@@ -1,9 +1,8 @@
 'use strict';
-const {
-  calcCO2,
-  getDailyTotal,
-  filterByCategory,
-  calculateStreak
+const { 
+  calcCO2, getDailyTotal, filterByCategory, 
+  calculateStreak, getYearlyPace, getWorstCategory,
+  generateCoachResponse
 } = require('../js/calculations');
 
 describe('calcCO2 — transport', () => {
@@ -118,5 +117,125 @@ describe('filterByCategory', () => {
 describe('calculateStreak', () => {
   test('no activities = 0', () => {
     expect(calculateStreak([])).toBe(0);
+  });
+});
+
+describe('getYearlyPace', () => {
+  const thisMonth = new Date().toISOString().slice(0, 7);
+  
+  test('empty array returns 0', () => {
+    expect(getYearlyPace([])).toBe(0);
+  });
+  test('annualises current month correctly', () => {
+    const acts = [
+      { date: thisMonth+'-01', co2kg: 6 },
+      { date: thisMonth+'-02', co2kg: 4 }
+    ];
+    expect(getYearlyPace(acts)).toBeGreaterThan(0);
+  });
+  test('returns number not string', () => {
+    const acts = [{ date: thisMonth+'-01', co2kg: 5 }];
+    expect(typeof getYearlyPace(acts)).toBe('number');
+  });
+});
+
+describe('getWorstCategory', () => {
+  const thisMonth = new Date().toISOString().slice(0, 7);
+
+  test('empty array returns transport', () => {
+    expect(getWorstCategory([])).toBe('transport');
+  });
+  test('returns category with highest total', () => {
+    const acts = [
+      { date: thisMonth+'-01', category:'food', co2kg:15 },
+      { date: thisMonth+'-01', category:'transport', co2kg:2 },
+      { date: thisMonth+'-01', category:'energy', co2kg:3 }
+    ];
+    expect(getWorstCategory(acts)).toBe('food');
+  });
+  test('returns transport when it dominates', () => {
+    const acts = [
+      { date: thisMonth+'-01', category:'transport', co2kg:20 },
+      { date: thisMonth+'-01', category:'food', co2kg:1 }
+    ];
+    expect(getWorstCategory(acts)).toBe('transport');
+  });
+});
+
+describe('calculateStreak — extended', () => {
+  const fmt = (d) => d.toISOString().slice(0,10);
+  
+  test('single entry today = streak 1', () => {
+    expect(calculateStreak([
+      { date: fmt(new Date()), co2kg: 1 }
+    ])).toBe(1);
+  });
+  test('two consecutive days = streak 2', () => {
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    expect(calculateStreak([
+      { date: fmt(today), co2kg: 1 },
+      { date: fmt(yesterday), co2kg: 1 }
+    ])).toBe(2);
+  });
+  test('gap resets streak to days-since-gap', () => {
+    const today = new Date();
+    const twoDaysAgo = new Date(today);
+    twoDaysAgo.setDate(today.getDate() - 2);
+    expect(calculateStreak([
+      { date: fmt(today), co2kg: 1 },
+      { date: fmt(twoDaysAgo), co2kg: 1 }
+    ])).toBe(1);
+  });
+  test('multiple entries same day count as one', () => {
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    expect(calculateStreak([
+      { date: fmt(today), co2kg: 1 },
+      { date: fmt(today), co2kg: 2 },
+      { date: fmt(yesterday), co2kg: 1 }
+    ])).toBe(2);
+  });
+});
+
+describe('generateCoachResponse', () => {
+  const thisMonth = new Date().toISOString().slice(0, 7);
+  const mockState = {
+    activities: [
+      { date: thisMonth+'-01', category:'transport', co2kg:10 },
+      { date: thisMonth+'-01', category:'food', co2kg:2 },
+    ],
+    streak: { current: 3 },
+    points: 150
+  };
+
+  test('returns a non-empty string', () => {
+    const r = generateCoachResponse('biggest', mockState);
+    expect(typeof r).toBe('string');
+    expect(r.length).toBeGreaterThan(10);
+  });
+  test('transport query returns transport info', () => {
+    const r = generateCoachResponse('transport', mockState);
+    expect(r.toLowerCase()).toMatch(/transport|car|commute|transit/);
+  });
+  test('paris query returns target info', () => {
+    const r = generateCoachResponse('paris target', mockState);
+    expect(r).toMatch(/2\.0|target|paris/i);
+  });
+  test('streak query returns streak info', () => {
+    const r = generateCoachResponse('streak', mockState);
+    expect(r).toMatch(/streak|day|log/i);
+  });
+  test('food query returns food info', () => {
+    const r = generateCoachResponse('food', mockState);
+    expect(r.toLowerCase()).toMatch(/food|diet|meal|eat/);
+  });
+  test('empty state returns helpful message', () => {
+    const r = generateCoachResponse('hello', 
+      { activities: [], streak: { current: 0 }, points: 0 });
+    expect(typeof r).toBe('string');
+    expect(r.length).toBeGreaterThan(5);
   });
 });
