@@ -96,16 +96,16 @@ npm install
 npm test
 ```
 
-- 84 unit tests across 5 test files
+- 100 unit tests across 5 test files
 
 | Test File | Tests | What It Covers |
 |-----------|-------|----------------|
-| calculations.test.js | 22 | CO2 math, daily totals, streak, filtering |
-| utils.test.js | 23 | clamp, escapeHtml, formatCO2, generateId |
+| calculations.test.js | 38 | CO2 math, daily totals, yearly pace, worst category, streak, AI coach |
+| utils.test.js | 23 | clamp, escapeHtml, formatCO2, generateId, safeJsonParse |
 | data.test.js | 19 | constants integrity, factor ordering |
 | storage.test.js | 11 | localStorage save/load, corruption handling |
 | validation.test.js | 9 | edge cases, NaN, null, data ordering |
-| **Total** | **84** | **All passing ✅** |
+| **Total** | **100** | **All passing ✅** |
 
 - Run with Jest 29 + coverage reporting
 
@@ -142,11 +142,16 @@ The live site will be available at:
 
 ## 📁 File Structure
 
-```
+```text
 carbon-diary/
 ├── index.html   — Complete 4-page SPA markup (accessible, semantic)
-├── style.css    — Full design system (light + dark themes, responsive)
-├── script.js    — All application logic (60+ named functions, JSDoc)
+├── style.css    — Full design system (light + dark themes, CSS variables)
+├── script.js    — Main UI controller and DOM manipulation
+├── js/
+│   ├── calculations.js — Business logic, streak calculations, coach AI
+│   ├── constants.js    — Global configurations and emission factors
+│   ├── storage.js      — LocalStorage persistence and data hydration
+│   └── utils.js        — Helper functions (formatting, validation)
 └── README.md    — This file
 ```
 
