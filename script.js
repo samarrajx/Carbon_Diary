@@ -168,16 +168,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // 11. Save any streak update
   saveState();
 
+}); // end DOMContentLoaded
 
 // ============================================================
 // PAGE NAVIGATION
 // ============================================================
 
-/**
- * Navigates to a given page, hiding all others.
- * Also triggers page-specific rendering.
- * @param {string} pageId - e.g. 'page-today'
- */
 /**
  * Hides all page sections and clears active nav states.
  */
